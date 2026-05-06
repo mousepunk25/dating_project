@@ -1,0 +1,91 @@
+city,latitude,longitude,country,iso2
+Paris,48.8566,2.3522,France,FR
+Berlin,52.52,13.405,Germany,DE
+Madrid,40.4168,-3.7038,Spain,ES
+Rome,41.9028,12.4964,Italy,IT
+Vienna,48.2082,16.3738,Austria,AT
+Prague,50.0755,14.4378,Czech Republic,CZ
+Warsaw,52.2297,21.0122,Poland,PL
+Budapest,47.4979,19.0402,Hungary,HU
+Amsterdam,52.3676,4.9041,Netherlands,NL
+Brussels,50.8503,4.3517,Belgium,BE
+London,51.5074,-0.1278,United Kingdom,GB
+Dublin,53.3498,-6.2603,Ireland,IE
+Lisbon,38.7223,-9.1393,Portugal,PT
+Athens,37.9838,23.7275,Greece,GR
+Helsinki,60.1699,24.9384,Finland,FI
+Stockholm,59.3293,18.0686,Sweden,SE
+Oslo,59.9139,10.7522,Norway,NO
+Copenhagen,55.6761,12.5683,Denmark,DK
+Reykjavik,64.1466,-21.9426,Iceland,IS
+Zurich,47.3769,8.5417,Switzerland,CH
+Geneva,46.2044,6.1432,Switzerland,CH
+Moscow,55.7558,37.6173,Russia,RU
+Saint Petersburg,59.9311,30.3609,Russia,RU
+Kyiv,50.4501,30.5234,Ukraine,UA
+Minsk,53.9006,27.559,Belarus,BY
+Bucharest,44.4268,26.1025,Romania,RO
+Sofia,42.6977,23.3219,Bulgaria,BG
+Belgrade,44.7866,20.4489,Serbia,RS
+Zagreb,45.815,15.9819,Croatia,HR
+Ljubljana,46.0569,14.5058,Slovenia,SI
+Sarajevo,43.8563,18.4131,Bosnia and Herzegovina,BA
+Podgorica,42.4304,19.2594,Montenegro,ME
+Skopje,41.9973,21.428,North Macedonia,MK
+Tirana,41.3275,19.8187,Albania,AL
+Istanbul,41.0082,28.9784,Turkey,TR
+Ankara,39.9334,32.8597,Turkey,TR
+Jerusalem,31.7683,35.2137,Israel,IL
+Tel Aviv,32.0853,34.7818,Israel,IL
+Cairo,30.0444,31.2357,Egypt,EG
+Alexandria,31.2001,29.9187,Egypt,EG
+Casablanca,33.5731,-7.5898,Morocco,MA
+Rabat,34.0209,-6.8416,Morocco,MA
+Tunis,36.8065,10.1815,Tunisia,TN
+Algiers,36.7538,3.0588,Algeria,DZ
+Lagos,6.5244,3.3792,Nigeria,NG
+Abuja,9.0765,7.3986,Nigeria,NG
+Accra,5.6037,-0.187,Ghana,GH
+Nairobi,-1.2921,36.8219,Kenya,KE
+Addis Ababa,8.9806,38.7578,Ethiopia,ET
+Kampala,0.3476,32.5825,Uganda,UG
+Dar es Salaam,-6.7924,39.2083,Tanzania,TZ
+Johannesburg,-26.2041,28.0473,South Africa,ZA
+Cape Town,-33.9249,18.4241,South Africa,ZA
+Pretoria,-25.7479,28.2293,South Africa,ZA
+Gaborone,-24.6282,25.9231,Botswana,BW
+Windhoek,-22.5609,17.0658,Namibia,NA
+Tokyo,35.6762,139.6503,Japan,JP
+Osaka,34.6937,135.5023,Japan,JP
+Seoul,37.5665,126.978,South Korea,KR
+Beijing,39.9042,116.4074,China,CN
+Shanghai,31.2304,121.4737,China,CN
+Hong Kong,22.3193,114.1694,China,HK
+Bangkok,13.7563,100.5018,Thailand,TH
+Hanoi,21.0278,105.8342,Vietnam,VN
+Ho Chi Minh City,10.8231,106.6297,Vietnam,VN
+Singapore,1.3521,103.8198,Singapore,SG
+Kuala Lumpur,3.139,101.6869,Malaysia,MY
+Jakarta,-6.2088,106.8456,Indonesia,ID
+Manila,14.5995,120.9842,Philippines,PH
+Sydney,-33.8688,151.2093,Australia,AU
+Melbourne,-37.8136,144.9631,Australia,AU
+Auckland,-36.8485,174.7633,New Zealand,NZ
+Wellington,-41.2865,174.7762,New Zealand,NZ
+Toronto,43.6532,-79.3832,Canada,CA
+Vancouver,49.2827,-123.1207,Canada,CA
+Montreal,45.5017,-73.5673,Canada,CA
+New York,40.7128,-74.006,United States,US
+Los Angeles,34.0522,-118.2437,United States,US
+Chicago,41.8781,-87.6298,United States,US
+San Francisco,37.7749,-122.4194,United States,US
+Mexico City,19.4326,-99.1332,Mexico,MX
+Guadalajara,20.6597,-103.3496,Mexico,MX
+Sao Paulo,-23.5505,-46.6333,Brazil,BR
+Rio de Janeiro,-22.9068,-43.1729,Brazil,BR
+Buenos Aires,-34.6037,-58.3816,Argentina,AR
+Santiago,-33.4489,-70.6693,Chile,CL
+Lima,-12.0464,-77.0428,Peru,PE
+Bogota,4.711,-74.0721,Colombia,CO
+Caracas,10.4806,-66.9036,Venezuela,VE
+Havana,23.1136,-82.3666,Cuba,CU
