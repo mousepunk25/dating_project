@@ -7,11 +7,7 @@ const socialMediaSons = require('./socialMedia-sons');
 const SonProfile = require('../models/sonProfile');
 const User = require('../models/user');
 
-mongoose.connect('mongodb://localhost:27017/project', {
-    useNewUrlParser: true,
-    useCreateIndex: true,
-    useUnifiedTopology: true
-});
+mongoose.connect('mongodb://localhost:27017/project');
 
 const db = mongoose.connection;
 

@@ -11,18 +11,12 @@ const sonRoutes = require('./routes/sons');
 const methodOverride = require('method-override');
 const passport = require('passport');
 const LocalStrategy = require('passport-local');
-const mongoSanitize = require('express-mongo-sanitize');
 
-const MongoDBStore = require("connect-mongo");
+const MongoDBStore = require("connect-mongo").default;
 
 const dbUrl = 'mongodb://localhost:27017/project';
 
-mongoose.connect(dbUrl, {
-    useNewUrlParser: true,
-    useCreateIndex: true,
-    useUnifiedTopology: true,
-    useFindAndModify: false
-});
+mongoose.connect(dbUrl);
 
 const db = mongoose.connection;
 db.on("error", console.error.bind(console, "connection error:"));
@@ -35,10 +29,7 @@ const app = express();
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(methodOverride('_method'));
-app.use(express.static(path.join(__dirname, 'public')))
-app.use(mongoSanitize({
-    replaceWith: '_'
-}))
+app.use(express.static(path.join(__dirname, 'public')));
 
 const secret = 'thisshouldbeabettersecret!';
 
@@ -90,9 +81,9 @@ app.get('/', (req, res) => {
     res.send('Hello!');
 });
 
-app.all('*', (req, res, next) => {
-    next(new ExpressError('Page Not Found', 404))
-})
+app.use((req, res) => {
+  res.status(404).send('Page not found!');
+});
 
 app.listen(3000, () => {
     console.log('Serving on port 3000');
