@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const session = require('express-session');
 const ExpressError = require('./utils/ExpressError');
 const User = require('./models/user');
+require('dotenv').config();
 
 const userRoutes = require('./routes/users');
 const adminsRoutes = require('./routes/admins');
@@ -14,7 +15,8 @@ const LocalStrategy = require('passport-local');
 
 const MongoDBStore = require("connect-mongo").default;
 
-const dbUrl = 'mongodb://localhost:27017/project';
+// const dbUrl = 'mongodb://localhost:27017/project';
+const dbUrl = `mongodb+srv://${process.env.DATABASE_USERNAME}:${process.env.DATABASE_PASSWORD}@datingproject.ktsayaf.mongodb.net/?appName=DatingProject`
 
 mongoose.connect(dbUrl);
 

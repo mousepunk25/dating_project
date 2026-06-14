@@ -6,8 +6,11 @@ const imagesSons = require('./images-sons');
 const socialMediaSons = require('./socialMedia-sons');
 const SonProfile = require('../models/sonProfile');
 const User = require('../models/user');
+require('dotenv').config({path: '../.env'});
 
-mongoose.connect('mongodb://localhost:27017/project');
+// const dbUrl = 'mongodb://localhost:27017/project';
+const dbUrl = `mongodb+srv://${process.env.DATABASE_USERNAME}:${process.env.DATABASE_PASSWORD}@datingproject.ktsayaf.mongodb.net/?appName=DatingProject`;
+mongoose.connect(dbUrl);
 
 const db = mongoose.connection;
 
