@@ -13,11 +13,11 @@ const SonProfileSchema = new Schema({
         type: Schema.Types.ObjectId,
         ref: 'User'
     },
-    surname: String,
+    fullName: String,
     dateOfBirth: Date,
     address: AddressSchema,
     aboutYou: String,
-    images: [ImageSchema],
+    image: ImageSchema,
     job: {
         position: String,
         location: AddressSchema,
@@ -28,15 +28,6 @@ const SonProfileSchema = new Schema({
         educationLevel: String,
         field: String
     },
-    organizations: [
-        {
-            name: String,
-            location: AddressSchema,
-            dateFrom: String,
-            dateTo: String
-        }
-    ],
-    hobbies: [String],
     socialMedia: [SocialMediaSchema]
 })
 

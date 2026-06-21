@@ -15,8 +15,7 @@ const LocalStrategy = require('passport-local');
 
 const MongoDBStore = require("connect-mongo").default;
 
-// const dbUrl = 'mongodb://localhost:27017/project';
-const dbUrl = `mongodb+srv://${process.env.DATABASE_USERNAME}:${process.env.DATABASE_PASSWORD}@datingproject.ktsayaf.mongodb.net/?appName=DatingProject`
+const dbUrl = process.env.ENVIRONMENT_VERSION === 'dev' ? 'mongodb://localhost:27017/project' : `mongodb+srv://${process.env.DATABASE_USERNAME}:${process.env.DATABASE_PASSWORD}@datingproject.ktsayaf.mongodb.net/?appName=DatingProject`;
 
 mongoose.connect(dbUrl);
 
