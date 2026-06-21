@@ -1,10 +1,8 @@
 const fs = require('fs');
 const { string } = require('joi');
 const mongoose = require('mongoose');
-const sons = require('./sons');
-const imagesSons = require('./images-sons');
-const socialMediaSons = require('./socialMedia-sons');
-const SonProfile = require('../models/sonProfile');
+const parents = require('./parents');
+const ParentProfile = require('../models/parentProfile');
 const User = require('../models/user');
 require('dotenv').config({path: '../.env'});
 
@@ -42,53 +40,37 @@ for (var i = 1; i < cities.length; i++) {
     citiesJsonArray.push(obj);
 };
 
-let completeSons = sons.map(s => {
-    let imageSon = imagesSons.find(is => {
-        return is.owner === s.email;
-    })
-    imageSon = {
-        url: imageSon.image.url,
-        filename: imageSon.image.filename
-    }
+let completeParents = parents.map(p => {
     let foundAddress = randomCity();
-    let foundJobLocation = randomCity();
-    return ({ ...s, image: imageSon, address: foundAddress, job: { ...s.job, location: foundJobLocation }});
-});
-
-completeSons = completeSons.map(s => {
-    let socialMediaSon = socialMediaSons.find(sM => {
-        return sM.owner === s.email;
-    })
-    return ({ ...s, socialMedia: socialMediaSon.media});
+    let sonAgeMin = Math.floor(Math.random() * (94 - 18 + 1)) + 18;
+    let sonAgeMax = 0;
+    while (sonAgeMax < sonAgeMin) {
+        sonAgeMax = Math.floor(Math.random() * (99 - 23 + 1)) +23;
+    }
+    return ({...p, sonAgeMin: sonAgeMin, sonAgeMax: sonAgeMax, address: foundAddress});
 });
 
 const seedDB = async () => {
-    await SonProfile.deleteMany({});
-    await User.deleteMany({ role: 'son' })
-    for(let i = 0; i < completeSons.length; i++) {
+    await ParentProfile.deleteMany({});
+    await User.deleteMany({ role: 'parent' });
+    for (let i = 0; i < completeParents.length; i++) {
         const user = new User({
-            email: completeSons[i].email,
-            role: 'son'
+            email: completeParents[i].email,
+            role: 'parent'
         })
-        const registeredUser = await User.register(user, completeSons[i].password)
+        const registeredUser = await User.register(user, completeParents[i].password);
+        const parentProfile = new ParentProfile({...completeParents[i], owner: registeredUser._id});
         try {
-            await registeredUser.save();
-        } catch (e) {
-            console.log(e);
-        }
-        const sonProfile = new SonProfile({...completeSons[i], owner: registeredUser._id});
-        try {
-        await sonProfile.save();
+            await parentProfile.save();
         } catch (e) {
             console.log(e);
         }
     }
-};
+}
 
 seedDB().then(() => {
     db.close();
 })
-
 
 function randomCity() {
     return citiesJsonArray[Math.floor(Math.random() * citiesJsonArray.length)];

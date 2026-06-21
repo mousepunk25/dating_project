@@ -6,7 +6,7 @@ module.exports = [
         "dateOfBirth": "1990-04-22",
         "address": "",
         "aboutYou": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed tincidunt nisl eget sodales eleifend. Nullam justo eros, condimentum eu varius quis, rhoncus ac leo. In ipsum metus, viverra nec ante vitae, aliquam porttitor orci. Integer tincidunt nec justo vel pellentesque. Vestibulum malesuada, erat vitae fermentum aliquet, ligula ante accumsan augue.",
-        "images": [],
+        "image": "",
         "job": {
             "position": "IT specialist",
             "location": "",
@@ -17,15 +17,6 @@ module.exports = [
             "educationLevel": "Bachelor",
             "field": "IT"
         },
-        "organizations": [
-            {
-                "name": "UNESCO",
-                "location": "",
-                "dateFrom": "2015-01-01",
-                "dateTo": "2016-01-01"
-            }
-        ],
-        "hobbies": ["volleyball", "computer games"],
         "socialMedia": ""
     },
     {
@@ -35,7 +26,7 @@ module.exports = [
         "dateOfBirth": "1985-11-04",
         "address": "",
         "aboutYou": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed tincidunt nisl eget sodales eleifend. Nullam justo eros, condimentum eu varius quis, rhoncus ac leo. In ipsum metus, viverra nec ante vitae, aliquam porttitor orci. Integer tincidunt nec justo vel pellentesque. Vestibulum malesuada, erat vitae fermentum aliquet, ligula ante accumsan augue.",
-        "images": [],
+        "image": "",
         "job": {
             "position": "E-commerce Manager",
             "location": "",
@@ -46,21 +37,6 @@ module.exports = [
             "educationLevel": "middle",
             "field": "High School"
         },
-        "organizations": [
-            {
-                "name": "The Red Cross",
-                "location": "",
-                "dateFrom": "2013-02-02",
-                "dateTo": "2013-02-03"
-            },
-            {
-                "name": "Greenpeace",
-                "location": "",
-                "dateFrom": "2011-02-29",
-                "dateTo": "2012-06-20"
-            }
-        ],
-        "hobbies": ["bugs", "psychology"],
         "socialMedia": ""
     },
     {
@@ -70,7 +46,7 @@ module.exports = [
         "dateOfBirth": "1995-01-29",
         "address": "",
         "aboutYou": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed tincidunt nisl eget sodales eleifend. Nullam justo eros, condimentum eu varius quis, rhoncus ac leo. In ipsum metus, viverra nec ante vitae, aliquam porttitor orci. Integer tincidunt nec justo vel pellentesque. Vestibulum malesuada, erat vitae fermentum aliquet, ligula ante accumsan augue.",
-        "images": [],
+        "image": "",
         "job": {
             "position": "septic tank driver",
             "location": "",
@@ -81,8 +57,6 @@ module.exports = [
             "educationLevel": "MBA",
             "field": "IT"
         },
-        "organizations": [],
-        "hobbies": ["K-pop", "anime"],
         "socialMedia": ""
     },
     {
@@ -92,7 +66,7 @@ module.exports = [
         "dateOfBirth": "1999-07-03",
         "address": "",
         "aboutYou": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed tincidunt nisl eget sodales eleifend. Nullam justo eros, condimentum eu varius quis, rhoncus ac leo. In ipsum metus, viverra nec ante vitae, aliquam porttitor orci. Integer tincidunt nec justo vel pellentesque. Vestibulum malesuada, erat vitae fermentum aliquet, ligula ante accumsan augue.",
-        "images": [],
+        "image": "",
         "job": {
             "position": "septic tank driver",
             "location": "",
@@ -103,8 +77,6 @@ module.exports = [
             "educationLevel": "MBA",
             "field": "IT"
         },
-        "organizations": [],
-        "hobbies": ["K-pop", "anime"],
         "socialMedia": ""
     },
     {
@@ -114,7 +86,7 @@ module.exports = [
         "dateOfBirth": "1990-09-29",
         "address": "",
         "aboutYou": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed tincidunt nisl eget sodales eleifend. Nullam justo eros, condimentum eu varius quis, rhoncus ac leo. In ipsum metus, viverra nec ante vitae, aliquam porttitor orci. Integer tincidunt nec justo vel pellentesque. Vestibulum malesuada, erat vitae fermentum aliquet, ligula ante accumsan augue.",
-        "images": [],
+        "image": "",
         "job": {
             "position": "septic tank driver",
             "location": "",
@@ -125,8 +97,6 @@ module.exports = [
             "educationLevel": "MBA",
             "field": "IT"
         },
-        "organizations": [],
-        "hobbies": ["K-pop", "anime"],
         "socialMedia": ""
     },
     {
@@ -136,7 +106,7 @@ module.exports = [
         "dateOfBirth": "1994-06-12",
         "address": "",
         "aboutYou": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed tincidunt nisl eget sodales eleifend. Nullam justo eros, condimentum eu varius quis, rhoncus ac leo. In ipsum metus, viverra nec ante vitae, aliquam porttitor orci. Integer tincidunt nec justo vel pellentesque. Vestibulum malesuada, erat vitae fermentum aliquet, ligula ante accumsan augue.",
-        "images": [],
+        "image": "",
         "job": {
             "position": "septic tank driver",
             "location": "",
@@ -147,8 +117,6 @@ module.exports = [
             "educationLevel": "MBA",
             "field": "IT"
         },
-        "organizations": [],
-        "hobbies": ["K-pop", "anime"],
         "socialMedia": ""
     },
     {
@@ -158,7 +126,7 @@ module.exports = [
         "dateOfBirth": "1983-07-25",
         "address": "",
         "aboutYou": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed tincidunt nisl eget sodales eleifend. Nullam justo eros, condimentum eu varius quis, rhoncus ac leo. In ipsum metus, viverra nec ante vitae, aliquam porttitor orci. Integer tincidunt nec justo vel pellentesque. Vestibulum malesuada, erat vitae fermentum aliquet, ligula ante accumsan augue.",
-        "images": [],
+        "image": "",
         "job": {
             "position": "septic tank driver",
             "location": "",
@@ -169,8 +137,6 @@ module.exports = [
             "educationLevel": "MBA",
             "field": "IT"
         },
-        "organizations": [],
-        "hobbies": ["K-pop", "anime"],
         "socialMedia": ""
     },
     {
@@ -180,7 +146,7 @@ module.exports = [
         "dateOfBirth": "1984-07-23",
         "address": "",
         "aboutYou": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed tincidunt nisl eget sodales eleifend. Nullam justo eros, condimentum eu varius quis, rhoncus ac leo. In ipsum metus, viverra nec ante vitae, aliquam porttitor orci. Integer tincidunt nec justo vel pellentesque. Vestibulum malesuada, erat vitae fermentum aliquet, ligula ante accumsan augue.",
-        "images": [],
+        "image": "",
         "job": {
             "position": "septic tank driver",
             "location": "",
@@ -191,8 +157,6 @@ module.exports = [
             "educationLevel": "MBA",
             "field": "IT"
         },
-        "organizations": [],
-        "hobbies": ["K-pop", "anime"],
         "socialMedia": ""
     },
     {
@@ -202,7 +166,7 @@ module.exports = [
         "dateOfBirth": "1970-08-01",
         "address": "",
         "aboutYou": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed tincidunt nisl eget sodales eleifend. Nullam justo eros, condimentum eu varius quis, rhoncus ac leo. In ipsum metus, viverra nec ante vitae, aliquam porttitor orci. Integer tincidunt nec justo vel pellentesque. Vestibulum malesuada, erat vitae fermentum aliquet, ligula ante accumsan augue.",
-        "images": [],
+        "image": "",
         "job": {
             "position": "septic tank driver",
             "location": "",
@@ -213,8 +177,6 @@ module.exports = [
             "educationLevel": "MBA",
             "field": "IT"
         },
-        "organizations": [],
-        "hobbies": ["K-pop", "anime"],
         "socialMedia": ""
     }
 ]
