@@ -19,9 +19,11 @@ module.exports.login = async (req, res) => {
     res.json({"profileId": profileId });
 }
 
-module.exports.logout = (req, res) => {
-    req.logout();
-    res.json({"message": "User logged out"});
+module.exports.logout = (req, res, next) => {
+    req.logout(() => {
+        if (err) { return next(err); }
+        res.json({"message": "User logged out"});
+    });
 }
 
 module.exports.deleteUser = async (req, res) => {
