@@ -2,8 +2,7 @@ module.exports = [
     {
         "email": "sth@sthgmail.com",
         "password": "password",
-        "name": "John",
-        "surname": "Smith",
+        "fullName": "John Smith",
         "dateOfBirth": "1990-04-22",
         "address": "",
         "aboutYou": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed tincidunt nisl eget sodales eleifend. Nullam justo eros, condimentum eu varius quis, rhoncus ac leo. In ipsum metus, viverra nec ante vitae, aliquam porttitor orci. Integer tincidunt nec justo vel pellentesque. Vestibulum malesuada, erat vitae fermentum aliquet, ligula ante accumsan augue.",
@@ -32,8 +31,7 @@ module.exports = [
     {
         "email": "superemail@super.com",
         "password": "password",
-        "name": "Stanley",
-        "surname": "Raven",
+        "fullName": "Stanley Raven",
         "dateOfBirth": "1985-11-04",
         "address": "",
         "aboutYou": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed tincidunt nisl eget sodales eleifend. Nullam justo eros, condimentum eu varius quis, rhoncus ac leo. In ipsum metus, viverra nec ante vitae, aliquam porttitor orci. Integer tincidunt nec justo vel pellentesque. Vestibulum malesuada, erat vitae fermentum aliquet, ligula ante accumsan augue.",
@@ -68,8 +66,7 @@ module.exports = [
     {
         "email": "normal@normal.com",
         "password": "password",
-        "name": "Beetrot",
-        "surname": "Weird",
+        "fullName": "Beetrot Weird",
         "dateOfBirth": "1995-01-29",
         "address": "",
         "aboutYou": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed tincidunt nisl eget sodales eleifend. Nullam justo eros, condimentum eu varius quis, rhoncus ac leo. In ipsum metus, viverra nec ante vitae, aliquam porttitor orci. Integer tincidunt nec justo vel pellentesque. Vestibulum malesuada, erat vitae fermentum aliquet, ligula ante accumsan augue.",
@@ -91,8 +88,7 @@ module.exports = [
     {
         "email": "simon@peter.com",
         "password": "password",
-        "name": "Simon",
-        "surname": "Peter",
+        "fullName": "Simon Peter",
         "dateOfBirth": "1999-07-03",
         "address": "",
         "aboutYou": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed tincidunt nisl eget sodales eleifend. Nullam justo eros, condimentum eu varius quis, rhoncus ac leo. In ipsum metus, viverra nec ante vitae, aliquam porttitor orci. Integer tincidunt nec justo vel pellentesque. Vestibulum malesuada, erat vitae fermentum aliquet, ligula ante accumsan augue.",
@@ -114,8 +110,7 @@ module.exports = [
     {
         "email": "jakob@fighter.com",
         "password": "password",
-        "name": "Jakob",
-        "surname": "Figher",
+        "fullName": "Jakob Figher",
         "dateOfBirth": "1990-09-29",
         "address": "",
         "aboutYou": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed tincidunt nisl eget sodales eleifend. Nullam justo eros, condimentum eu varius quis, rhoncus ac leo. In ipsum metus, viverra nec ante vitae, aliquam porttitor orci. Integer tincidunt nec justo vel pellentesque. Vestibulum malesuada, erat vitae fermentum aliquet, ligula ante accumsan augue.",
@@ -137,8 +132,7 @@ module.exports = [
     {
         "email": "cyprus@mark.com",
         "password": "password",
-        "name": "Cyprus",
-        "surname": "Mark",
+        "fullName": "Cyprus Mark",
         "dateOfBirth": "1994-06-12",
         "address": "",
         "aboutYou": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed tincidunt nisl eget sodales eleifend. Nullam justo eros, condimentum eu varius quis, rhoncus ac leo. In ipsum metus, viverra nec ante vitae, aliquam porttitor orci. Integer tincidunt nec justo vel pellentesque. Vestibulum malesuada, erat vitae fermentum aliquet, ligula ante accumsan augue.",
@@ -160,8 +154,7 @@ module.exports = [
     {
         "email": "martin@frost.com",
         "password": "password",
-        "name": "Martin",
-        "surname": "Frost",
+        "fullName": "Martin Frost",
         "dateOfBirth": "1983-07-25",
         "address": "",
         "aboutYou": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed tincidunt nisl eget sodales eleifend. Nullam justo eros, condimentum eu varius quis, rhoncus ac leo. In ipsum metus, viverra nec ante vitae, aliquam porttitor orci. Integer tincidunt nec justo vel pellentesque. Vestibulum malesuada, erat vitae fermentum aliquet, ligula ante accumsan augue.",
@@ -183,8 +176,7 @@ module.exports = [
     {
         "email": "philip@newman.com",
         "password": "password",
-        "name": "Philip",
-        "surname": "Newman",
+        "fullName": "Philip Newman",
         "dateOfBirth": "1984-07-23",
         "address": "",
         "aboutYou": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed tincidunt nisl eget sodales eleifend. Nullam justo eros, condimentum eu varius quis, rhoncus ac leo. In ipsum metus, viverra nec ante vitae, aliquam porttitor orci. Integer tincidunt nec justo vel pellentesque. Vestibulum malesuada, erat vitae fermentum aliquet, ligula ante accumsan augue.",
@@ -206,8 +198,7 @@ module.exports = [
     {
         "email": "jakob@spider.com",
         "password": "password",
-        "name": "Jakob",
-        "surname": "Spider",
+        "fullName": "Jakob Spider",
         "dateOfBirth": "1970-08-01",
         "address": "",
         "aboutYou": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed tincidunt nisl eget sodales eleifend. Nullam justo eros, condimentum eu varius quis, rhoncus ac leo. In ipsum metus, viverra nec ante vitae, aliquam porttitor orci. Integer tincidunt nec justo vel pellentesque. Vestibulum malesuada, erat vitae fermentum aliquet, ligula ante accumsan augue.",

@@ -8,8 +8,8 @@ const SonProfile = require('../models/sonProfile');
 const User = require('../models/user');
 require('dotenv').config({path: '../.env'});
 
-// const dbUrl = 'mongodb://localhost:27017/project';
-const dbUrl = `mongodb+srv://${process.env.DATABASE_USERNAME}:${process.env.DATABASE_PASSWORD}@datingproject.ktsayaf.mongodb.net/?appName=DatingProject`;
+const dbUrl = process.env.ENVIRONMENT_VERSION === 'dev' ? 'mongodb://localhost:27017/project' : `mongodb+srv://${process.env.DATABASE_USERNAME}:${process.env.DATABASE_PASSWORD}@datingproject.ktsayaf.mongodb.net/?appName=DatingProject`;
+
 mongoose.connect(dbUrl);
 
 const db = mongoose.connection;
@@ -20,7 +20,6 @@ db.once("open", () => {
 });
 
 let cities = [];
-
 
 cities = fs.readFileSync('cities.csv', 'utf-8', string);
 cities = cities.split(/\r?\n/);
@@ -47,6 +46,10 @@ let completeSons = sons.map(s => {
     let imagesSon = imagesSons.find(is => {
         return is.owner === s.email;
     })
+    imagesSon = {
+        owner: imagesSon.owner,
+        images: imagesSon.images[0]
+    }
     let foundAddress = randomCity();
     let foundJobLocation = randomCity();
     let organizationsWithLocations = s.organizations.map(o => {
@@ -68,7 +71,6 @@ const seedDB = async () => {
     for(let i = 0; i < completeSons.length; i++) {
         const user = new User({
             email: completeSons[i].email,
-            name: completeSons[i].name,
             role: 'son'
         })
         const registeredUser = await User.register(user, completeSons[i].password)
