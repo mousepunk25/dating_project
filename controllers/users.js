@@ -20,7 +20,7 @@ module.exports.login = async (req, res) => {
 }
 
 module.exports.logout = (req, res, next) => {
-    req.logout(() => {
+    req.logout((err) => {
         if (err) { return next(err); }
         res.json({"message": "User logged out"});
     });
