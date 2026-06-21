@@ -33,12 +33,14 @@ app.use(express.json());
 app.use(methodOverride('_method'));
 app.use(express.static(path.join(__dirname, 'public')));
 
-const secret = 'thisshouldbeabettersecret!';
+const secret = process.env.DATABASE_SECRET || 'thisshouldbeabettersecret!';
 
 const store = MongoDBStore.create({
     mongoUrl: dbUrl,
-    secret,
-    ttl: 24 * 60 * 60
+    touchAfter: 24 * 60 * 60,
+    crypto: {
+        secret
+    }
 });
 
 store.on("error", function (e) {
@@ -87,6 +89,7 @@ app.use((req, res) => {
   res.status(404).send('Page not found!');
 });
 
-app.listen(3000, () => {
-    console.log('Serving on port 3000');
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+    console.log(`Serving on port ${port}`);
 })
