@@ -1,4 +1,5 @@
 const express = require('express');
+const cors = require('cors');
 const path = require('path');
 const mongoose = require('mongoose');
 const session = require('express-session');
@@ -26,6 +27,7 @@ db.once("open", () => {
 });
 
 const app = express();
+app.use(cors({ origin: 'http://localhost:3000' }));
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
