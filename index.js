@@ -27,7 +27,12 @@ db.once("open", () => {
 });
 
 const app = express();
-app.use(cors({ origin: 'http://localhost:3000' }));
+const corsOptions = {
+  origin: 'http://localhost:3000', // Replace with your exact frontend domain
+  credentials: true,       // This fixes the 'Access-Control-Allow-Credentials' error
+  optionsSuccessStatus: 200 // Some legacy browsers (IE11, various SmartTVs) choke on 204
+};
+app.use(cors(corsOptions));
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
