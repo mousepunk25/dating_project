@@ -10,6 +10,7 @@ require('dotenv').config();
 const userRoutes = require('./routes/users');
 const adminsRoutes = require('./routes/admins');
 const sonRoutes = require('./routes/sons');
+const parentRoutes = require('./routes/parents');
 const methodOverride = require('method-override');
 const passport = require('passport');
 const LocalStrategy = require('passport-local');
@@ -53,6 +54,8 @@ store.on("error", function (e) {
     console.log("SESSION STORE ERROR", e)
 })
 
+const isProduction = process.env.ENVIRONMENT_VERSION === 'production';
+
 const sessionConfig = {
     store,
     name: 'session',
@@ -61,9 +64,10 @@ const sessionConfig = {
     saveUninitialized: true,
     cookie: {
         httpOnly: true,
-        // secure: true,
+        secure: isProduction,
         expires: Date.now() + 1000 * 60 * 60 * 24 * 7,
-        maxAge: 1000 * 60 * 60 * 24 * 7
+        maxAge: 1000 * 60 * 60 * 24 * 7,
+        sameSite: isProduction ? 'none' : 'lax'
     }
 }
 
@@ -86,6 +90,7 @@ app.use((req, res, next) => {
 app.use('/', userRoutes);
 app.use('/admins', adminsRoutes);
 app.use('/sons', sonRoutes);
+app.use('/parents', parentRoutes);
 
 app.get('/', (req, res) => {
     res.send('Hello!');
@@ -95,7 +100,7 @@ app.use((req, res) => {
   res.status(404).send('Page not found!');
 });
 
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 5173;
 app.listen(port, () => {
     console.log(`Serving on port ${port}`);
 })
