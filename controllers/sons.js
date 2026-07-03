@@ -60,3 +60,8 @@ module.exports.updateSon = async (req, res, next) => {
     }
     return res.json({ "message": "Your profile has beed updated!" });
 }
+
+module.exports.count = async (req, res) => {
+    const sonNumber = await SonProfile.countDocuments({});
+    res.json({"sonNumber": sonNumber});
+}

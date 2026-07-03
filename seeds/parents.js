@@ -2,35 +2,35 @@ module.exports = [
     {
         "email": "stanley@gmail.com",
         "password": "password",
-        "firstName": "Stanley",
+        "fullName": "Stanley",
         "job": "Firefighter",
         "address": ""
     },
     {
         "email": "marcus@gmail.com",
         "password": "password",
-        "firstName": "Marcus",
+        "fullName": "Marcus",
         "job": "Contruction worker",
         "address": ""
     },
     {
         "email": "alice@gmail.com",
         "password": "password",
-        "firstName": "Alice",
+        "fullName": "Alice",
         "job": "Plumber",
         "address": ""
     },
     {
         "email": "jesscia@gmail.com",
         "password": "password",
-        "firstName": "Jessica",
+        "fullName": "Jessica",
         "job": "Chinese translator",
         "address": ""
     },
     {
         "email": "bella@gmail.com",
         "password": "password",
-        "firstName": "Bella",
+        "fullName": "Bella",
         "job": "Politician",
         "address": ""
     }

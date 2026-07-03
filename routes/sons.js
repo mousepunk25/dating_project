@@ -6,6 +6,8 @@ const sons = require('../controllers/sons');
 
 router.get('/', catchAsync(sons.index));
 
+router.get('/count', catchAsync(sons.count));
+
 router.route('/:id')
     .get(catchAsync(sons.showSon))
     .delete(isLoggedIn, isProfileOwner({type: 'son'}), catchAsync(sons.deleteSon))

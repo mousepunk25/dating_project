@@ -2,7 +2,6 @@ const SonProfile = require('./models/sonProfile');
 const ParentProfile = require('./models/parentProfile');
 
 module.exports.isLoggedIn = (req, res, next) => {
-    console.log(req.isAuthenticated());
     if (!req.isAuthenticated()) {
         req.session.returnTo = req.originalUrl;
         return res.json({'error': 'You must be logged in'});

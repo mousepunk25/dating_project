@@ -10,8 +10,7 @@ module.exports.index = async (req, res) => {
 
 module.exports.showParent = async (req, res, next) => {
     try {
-       const parent = await ParentProfile.findById(req.params.id, 'name surname dateOfBirth address job education hobbies aboutYou images socialMedia');
-       console.log('parent', parent);
+       const parent = await ParentProfile.findById(req.params.id, 'fullName address job sonAgeMin sonAgeMax');
        res.json(parent);
 
     } catch (e) {
@@ -100,7 +99,10 @@ module.exports.sonsWithRequestSentRegister = async (req, res, next) => {
         } else {
             parentProfile.sonsWithRequestSent.sonsWithRequestSentArray.push(sonid);
             await parentProfile.save();
-            return res.json({ "message": "This man was added to your friend's list." })
+            return res.json({
+                "message": "This man was added to your friend's list.",
+                "status": 200
+            })
         }
     } catch (e) {
         return res.json({ "message": "Something went wrong" });
@@ -141,5 +143,57 @@ module.exports.sonsWhoWantToBeAddedAccept = async (req, res, next) => {
     } catch (e) {
         console.log(e.message);
         return res.json({ "message": "Something went wrong" });
+    }
+}
+
+module.exports.sonsFriendsShow = async (req, res, next) => {
+    try {
+        const parent = await ParentProfile.findById(req.params.id).populate({
+            path: 'sonsFriends',
+            populate: {path: 'sonsFriendsArray'}
+        });
+        const sonsList =  parent.sonsFriends.sonsFriendsArray;
+        return res.json(sonsList);
+    } catch (e) {
+        console.log(e.message);
+        return res.json({'message': 'Something went wrong.'});
+    }
+}
+
+module.exports.sonsSavedShow = async (req, res, next) => {
+    try {
+        const parent = await ParentProfile.findById(req.params.id).populate('sonsSaved');
+        const sonsList =  parent.sonsSaved;
+        return res.json(sonsList);
+    } catch (e) {
+        console.log(e.message);
+        return res.json({'message': 'Something went wrong.'});
+    }
+}
+
+module.exports.sonsSavedRegister = async (req, res, next) => {
+    const { id, sonid } = req.params;
+    try {
+        let parentProfile = await ParentProfile.findById(id);
+        const isSonFriend = parentProfile.sonsFriends.sonsFriendsArray.some(sF => sF.equals(sonid));
+        const isSonWhoWantToBeAdded = parentProfile.sonsWhoWantToBeAdded.some(sW => sW.equals(sonid));
+        const isSonSaved = parentProfile.sonsSaved.some(sS => sS.equals(sonid));
+        if (isSonFriend) {
+            return res.json({ "message": "This man is already on your friend's list" });
+        } else if (isSonWhoWantToBeAdded) {
+            return res.json({ "message": "This man was on your 'Want To Be Added' list." });
+        } else if (isSonSaved) {
+            return res.json({"message": "This man is already saved"});
+        }
+         else {
+            parentProfile.sonsSaved.push(sonid);
+            await parentProfile.save();
+            return res.json({ "message": "This man was added to your saved friend's list." })
+        }
+    } catch (e) {
+        return res.json({
+            "message": "Something went wrong",
+            "status": 200
+        });
     }
 }
