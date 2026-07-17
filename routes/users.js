@@ -9,6 +9,8 @@ router.route('/login')
     .get(users.renderLogin)
     .post(passport.authenticate('local', {failureMessage: 'Logging in unsuccessful'}), users.login)
 
+router.post('/register', users.register);
+
 router.get('/logout', users.logout)
 
 router.route('/users/:id')
