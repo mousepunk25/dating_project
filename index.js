@@ -29,7 +29,7 @@ db.once("open", () => {
 
 const app = express();
 const corsOptions = {
-  origin: 'http://localhost:3000', // Replace with your exact frontend domain
+  origin: process.env.ENVIRONMENT_VERSION === 'dev' ? process.env.DEV_FRONTEND_URL : process.env.PROD_FRONTEND_URL, // Replace with your exact frontend domain
   credentials: true,       // This fixes the 'Access-Control-Allow-Credentials' error
   optionsSuccessStatus: 200 // Some legacy browsers (IE11, various SmartTVs) choke on 204
 };

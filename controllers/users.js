@@ -3,6 +3,7 @@ const User = require('../models/user');
 const SonProfile = require('../models/sonProfile');
 const ParentProfile = require('../models/parentProfile');
 const cloudinary = require('cloudinary').v2;
+const frontendURL = process.env.ENVIRONMENT_VERSION === 'dev' ? process.env.DEV_FRONTEND_URL : process.env.PROD_FRONTEND_URL;
 
 module.exports.renderLogin = (req, res) => {
     res.sendFile(path.join(__dirname, '../views/login.html'));
@@ -30,13 +31,13 @@ module.exports.login = async (req, res) => {
             role = 'parent';
         }
     }
-    res.redirect(`http://localhost:3000/myprofile?profileid=${profileId}&role=${role}`);
+    res.redirect(`${frontendURL}/myprofile?profileid=${profileId}&role=${role}`);
 }
 
 module.exports.logout = (req, res, next) => {
     req.logout((err) => {
         if (err) { return next(err); }
-        res.redirect('http://localhost:3000/myprofile?logout=true');
+        res.redirect(`${frontendURL}/myprofile?logout=true`);
     });
 }
 
@@ -74,24 +75,24 @@ module.exports.register = async (req, res, next) => {
             }
         } else if (role === 'son') {
             let image = {};
-            cloudinary.config({
-                cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-                api_key: process.env.CLOUDINARY_API_KEY,
-                api_secret: process.env.CLOUDINARY_API_SECRET
-            });
+            // cloudinary.config({
+            //     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+            //     api_key: process.env.CLOUDINARY_API_KEY,
+            //     api_secret: process.env.CLOUDINARY_API_SECRET
+            // });
             try {
-                const uploadResult = await cloudinary.uploader
-                .upload(
-                    path.join(__dirname, '../public/image_placeholder'), {
-                    public_id: 'shoes',
-                }
-                )
-                .catch((error) => {
-                    console.log(error);
-                });
+                // const uploadResult = await cloudinary.uploader
+                // .upload(
+                //     path.join(__dirname, '../public/image_placeholder'), {
+                //     public_id: 'profile_picture',
+                // }
+                // )
+                // .catch((error) => {
+                //     console.log(error);
+                // });
 
             image = {
-                url: uploadResult.secure_url,
+                url: 'https://res.cloudinary.com/gljkxoem/image/upload/v1784026809/shoes.jpg',
                 filename: 'Profile Picture'
             };
             } catch (e) {
@@ -107,7 +108,7 @@ module.exports.register = async (req, res, next) => {
         }
         req.login(registeredUser, err => {
             if (err) return next(err);
-            res.redirect(`http://localhost:3000/myprofile?profileid=${profileId}&role=${role}`);
+            res.redirect(`${frontendURL}/myprofile?profileid=${profileId}&role=${role}`);
         })
     } catch (e) {
         console.log(e.message);
