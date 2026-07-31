@@ -1,12 +1,64 @@
+const { query } = require('express-validator');
+
 const User = require('../models/user');
 const ParentProfile = require('../models/parentProfile');
 const SonProfile = require('../models/sonProfile');
 
+// 1. Define validation rules
+module.exports.validateIndex = [
+  query('sonAgeMin')
+    .optional()
+    .isInt({ min: 18, max: 99 })
+    .withMessage('sonAgeMin must be an integer between 18 and 99')
+    .toInt(), // Converts input string to integer
+
+  query('sonAgeMax')
+    .optional()
+    .isInt({ min: 18, max: 99 })
+    .withMessage('sonAgeMax must be an integer between 18 and 99')
+    .custom((value, { req }) => {
+      const min = req.query.sonAgeMin ? parseInt(req.query.sonAgeMin, 10) : 18;
+      if (parseInt(value, 10) <= min) {
+        throw new Error('sonAgeMax must be greater than sonAgeMin');
+      }
+      return true;
+    })
+    .toInt(),
+
+  query('city')
+    .optional()
+    .isString()
+    .withMessage('city must be a string')
+    .trim()
+];
+
 module.exports.index = async (req, res) => {
-    const { sonAgeMin = 18, sonAgeMax = 99, city = '.*' } = req.query;
-    let parents = await ParentProfile.find({ "sonAgeMin": { $gte: sonAgeMin }, "sonAgeMax": { $lte: sonAgeMax }, "address.city": { $regex: `${city}`, $options: 'i' } }, 'name address job');
+  // Check for validation errors
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  // Parse defaults if query parameters weren't provided
+  const sonAgeMin = req.query.sonAgeMin ?? 18;
+  const sonAgeMax = req.query.sonAgeMax ?? 99;
+  const city = req.query.city ?? '.*';
+
+  try {
+    const parents = await ParentProfile.find(
+      {
+        "sonAgeMin": { $gte: sonAgeMin },
+        "sonAgeMax": { $lte: sonAgeMax },
+        "address.city": { $regex: city, $options: 'i' }
+      },
+      'name address job'
+    );
+
     res.json(parents);
-}
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};
 
 module.exports.showParent = async (req, res, next) => {
     try {

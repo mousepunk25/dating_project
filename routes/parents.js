@@ -4,7 +4,7 @@ const catchAsync = require('../utils/catchAsync');
 const {isLoggedIn, isProfileOwner} = require('../middleware');
 const parents = require('../controllers/parents');
 
-router.get('/', isLoggedIn, catchAsync(parents.index));
+router.get('/', isLoggedIn, parents.validateIndex, catchAsync(parents.index));
 
 router.route('/:id')
     .get(isLoggedIn, catchAsync(parents.showParent))
