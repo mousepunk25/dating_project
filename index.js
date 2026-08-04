@@ -29,9 +29,9 @@ db.once("open", () => {
 
 const app = express();
 const corsOptions = {
-  origin: process.env.ENVIRONMENT_VERSION === 'dev' ? process.env.DEV_FRONTEND_URL : process.env.PROD_FRONTEND_URL, // Replace with your exact frontend domain
-  credentials: true,       // This fixes the 'Access-Control-Allow-Credentials' error
-  optionsSuccessStatus: 200 // Some legacy browsers (IE11, various SmartTVs) choke on 204
+    origin: process.env.ENVIRONMENT_VERSION === 'dev' ? process.env.DEV_FRONTEND_URL : process.env.PROD_FRONTEND_URL, // Replace with your exact frontend domain
+    credentials: true,       // This fixes the 'Access-Control-Allow-Credentials' error
+    optionsSuccessStatus: 200 // Some legacy browsers (IE11, various SmartTVs) choke on 204
 };
 app.use(cors(corsOptions));
 
@@ -54,7 +54,11 @@ store.on("error", function (e) {
     console.log("SESSION STORE ERROR", e)
 })
 
-const isProduction = process.env.ENVIRONMENT_VERSION === 'production';
+const isProduction = process.env.ENVIRONMENT_VERSION !== 'dev';
+
+if (isProduction) {
+    app.set('trust proxy', 1);
+}
 
 const sessionConfig = {
     store,
@@ -64,12 +68,11 @@ const sessionConfig = {
     saveUninitialized: true,
     cookie: {
         httpOnly: true,
-        secure: isProduction,
-        expires: Date.now() + 1000 * 60 * 60 * 24 * 7,
-        maxAge: 1000 * 60 * 60 * 24 * 7,
-        sameSite: isProduction ? 'none' : 'lax'
+        secure: isProduction, // Requires HTTPS (or trust proxy)
+        maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days in ms (automatically sets expires)
+        sameSite: isProduction ? 'none' : 'lax' // 'none' requires HTTPS across all modern browsers
     }
-}
+};
 
 app.use(session(sessionConfig));
 
@@ -95,7 +98,7 @@ app.get('/', (req, res) => {
 });
 
 app.use((req, res) => {
-  res.status(404).send('Page not found!');
+    res.status(404).send('Page not found!');
 });
 
 const port = process.env.PORT || 5173;
