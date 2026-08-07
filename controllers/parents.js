@@ -6,64 +6,56 @@ const SonProfile = require('../models/sonProfile');
 
 // 1. Define validation rules
 module.exports.validateIndex = [
-  query('sonAgeMin')
-    .optional()
-    .isInt({ min: 18, max: 99 })
-    .withMessage('sonAgeMin must be an integer between 18 and 99')
-    .toInt(), // Converts input string to integer
+    query('sonAge')
+        .optional()
+        .isInt({ min: -1, max: 99 })
+        .withMessage('sonAgeMin must be an integer between -1 and 99')
+        .toInt(), // Converts input string to integer
 
-  query('sonAgeMax')
-    .optional()
-    .isInt({ min: 18, max: 99 })
-    .withMessage('sonAgeMax must be an integer between 18 and 99')
-    .custom((value, { req }) => {
-      const min = req.query.sonAgeMin ? parseInt(req.query.sonAgeMin, 10) : 18;
-      if (parseInt(value, 10) <= min) {
-        throw new Error('sonAgeMax must be greater than sonAgeMin');
-      }
-      return true;
-    })
-    .toInt(),
-
-  query('city')
-    .optional()
-    .isString()
-    .withMessage('city must be a string')
-    .trim()
+    query('city')
+        .optional()
+        .isString()
+        .withMessage('city must be a string')
+        .trim()
 ];
 
 module.exports.index = async (req, res) => {
-  // Check for validation errors
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-
-  // Parse defaults if query parameters weren't provided
-  const sonAgeMin = req.query.sonAgeMin ?? 18;
-  const sonAgeMax = req.query.sonAgeMax ?? 99;
-  const city = req.query.city ?? '.*';
-
-  try {
-    const parents = await ParentProfile.find(
-      {
-        "sonAgeMin": { $gte: sonAgeMin },
-        "sonAgeMax": { $lte: sonAgeMax },
-        "address.city": { $regex: city, $options: 'i' }
-      },
-      'name address job'
-    );
-
-    res.json(parents);
-  } catch (err) {
-    res.status(500).json({ error: 'Server error' });
-  }
+    // Check for validation errors
+    // if (!errors.isEmpty()) {
+    //     return res.status(400).json({ errors: errors.array() });
+    // }
+    // Parse defaults if query parameters weren't provided
+    const sonAge = req.query.sonAge ?? -1;
+    const city = req.query.city ?? '.*';
+    try {
+        let parents = [];
+        if (sonAge > 0) {
+            parents = await ParentProfile.find(
+                {
+                    "sonAgeMin": { $lte: sonAge },
+                    "sonAgeMax": { $gte: sonAge },
+                    "address.city": { $regex: city, $options: 'i' }
+                },
+                'fullName address job'
+            );
+        } else {
+            parents = await ParentProfile.find(
+                {
+                    "address.city": { $regex: city, $options: 'i' }
+                },
+                'fullName address job'
+            );
+        }
+        res.json(parents);
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
 };
 
 module.exports.showParent = async (req, res, next) => {
     try {
-       const parent = await ParentProfile.findById(req.params.id, 'fullName address job sonAgeMin sonAgeMax');
-       res.json(parent);
+        const parent = await ParentProfile.findById(req.params.id, 'fullName address job sonAgeMin sonAgeMax');
+        res.json(parent);
 
     } catch (e) {
         console.log(e);
@@ -71,35 +63,12 @@ module.exports.showParent = async (req, res, next) => {
     }
 }
 
-module.exports.register = async (req, res, next) => {
-    const { email, name, password, job, hobbies, address, sonAgeMin, sonAgeMax } = req.body;
-    const user = new User({ email, name, role: 'parent' });
-    // res.send("That's the controler registering parent");
-    let registeredUser = {};
+module.exports.deleteParent = async (req, res, next) => {
     try {
-        registeredUser = await User.register(user, password);
+        res.json({ "message": "This is the route for deleting parent" });
     } catch (e) {
-        return res.send("We have such user in the database");
-    }
-    if (Object.keys(registeredUser).length !== 0) {
-        const parentProfile = new ParentProfile({
-            owner: registeredUser._id,
-            job,
-            hobbies,
-            address,
-            sonAgeMin,
-            sonAgeMax,
-            doughters
-        });
-        try {
-            parentProfile.save();
-        } catch (e) {
-            console.log(e);
-        }
-        req.login(registeredUser, err => {
-            if (err) return next(err);
-            return res.json({ "message": 'You are logged int', "userId": registeredUser._id });
-        })
+        console.log(e);
+        return next(err);
     }
 }
 
@@ -118,13 +87,13 @@ module.exports.sonsWithRequestSentShow = async (req, res) => {
     try {
         const parent = await ParentProfile.findById(req.params.id).populate({
             path: 'sonsWithRequestSent',
-            populate: {path: 'sonsWithRequestSentArray'}
+            populate: { path: 'sonsWithRequestSentArray' }
         });
-        const sonsList =  parent.sonsWithRequestSent.sonsWithRequestSentArray;
+        const sonsList = parent.sonsWithRequestSent.sonsWithRequestSentArray;
         return res.json(sonsList);
     } catch (e) {
         console.log(e.message);
-        return res.json({'message': 'Something went wrong.'});
+        return res.json({ 'message': 'Something went wrong.' });
     }
 }
 
@@ -161,14 +130,24 @@ module.exports.sonsWithRequestSentRegister = async (req, res, next) => {
     }
 }
 
+module.exports.sonsWithRequestSentDelete = async (req, res, next) => {
+    const { id, sonid } = req.params;
+    try {
+        res.json({ "message": "This is the route for deleting the son from the sonsWithRequestSent list" });
+    } catch (e) {
+        console.log(e);
+        return next(err);
+    }
+}
+
 module.exports.sonsWhoWantToBeAddedShow = async (req, res, next) => {
     try {
         const parent = await ParentProfile.findById(req.params.id).populate('sonsWhoWantToBeAdded');
-        const sonsList =  parent.sonsWhoWantToBeAdded;
+        const sonsList = parent.sonsWhoWantToBeAdded;
         return res.json(sonsList);
     } catch (e) {
         console.log(e.message);
-        return res.json({'message': 'Something went wrong.'});
+        return res.json({ 'message': 'Something went wrong.' });
     }
 }
 
@@ -188,9 +167,9 @@ module.exports.sonsWhoWantToBeAddedAccept = async (req, res, next) => {
             sonProfile.parentsWithRequestSent = sonProfile.parentsWithRequestSent.parentsWithRequestSentArray.filter(p => !p.equals(id));
             await parentProfile.save();
             await sonProfile.save();
-            return res.json({"message": "This son was added to your Friends List"});
+            return res.json({ "message": "This son was added to your Friends List" });
         } else {
-            return res.json({"message": "This man is not on your 'Want to be added' list"});
+            return res.json({ "message": "This man is not on your 'Want to be added' list" });
         }
     } catch (e) {
         console.log(e.message);
@@ -198,28 +177,48 @@ module.exports.sonsWhoWantToBeAddedAccept = async (req, res, next) => {
     }
 }
 
+module.exports.sonsWhoWantToBeAddedDelete = async (req, res, next) => {
+    const { id, sonid } = req.params;
+    try {
+        res.json({ "message": "This is the route for deleting the son from the sonsWhoWantToBeAdded list" });
+    } catch (e) {
+        console.log(e);
+        return next(err);
+    }
+}
+
 module.exports.sonsFriendsShow = async (req, res, next) => {
     try {
         const parent = await ParentProfile.findById(req.params.id).populate({
             path: 'sonsFriends',
-            populate: {path: 'sonsFriendsArray'}
+            populate: { path: 'sonsFriendsArray' }
         });
-        const sonsList =  parent.sonsFriends.sonsFriendsArray;
+        const sonsList = parent.sonsFriends.sonsFriendsArray;
         return res.json(sonsList);
     } catch (e) {
         console.log(e.message);
-        return res.json({'message': 'Something went wrong.'});
+        return res.json({ 'message': 'Something went wrong.' });
+    }
+}
+
+module.exports.sonsFriendsDelete = async (req, res, next) => {
+    const { id, sonid } = req.params;
+    try {
+        res.json({ "message": "This is the route for deleting the son from the sonsFreinds list" });
+    } catch (e) {
+        console.log(e);
+        return next(err);
     }
 }
 
 module.exports.sonsSavedShow = async (req, res, next) => {
     try {
         const parent = await ParentProfile.findById(req.params.id).populate('sonsSaved');
-        const sonsList =  parent.sonsSaved;
+        const sonsList = parent.sonsSaved;
         return res.json(sonsList);
     } catch (e) {
         console.log(e.message);
-        return res.json({'message': 'Something went wrong.'});
+        return res.json({ 'message': 'Something went wrong.' });
     }
 }
 
@@ -235,9 +234,9 @@ module.exports.sonsSavedRegister = async (req, res, next) => {
         } else if (isSonWhoWantToBeAdded) {
             return res.json({ "message": "This man was on your 'Want To Be Added' list." });
         } else if (isSonSaved) {
-            return res.json({"message": "This man is already saved"});
+            return res.json({ "message": "This man is already saved" });
         }
-         else {
+        else {
             parentProfile.sonsSaved.push(sonid);
             await parentProfile.save();
             return res.json({ "message": "This man was added to your saved friend's list." })
@@ -247,5 +246,15 @@ module.exports.sonsSavedRegister = async (req, res, next) => {
             "message": "Something went wrong",
             "status": 200
         });
+    }
+}
+
+module.exports.sonsSavedDelete = async (req, res, next) => {
+    const { id, sonid } = req.params;
+    try {
+        res.json({ "message": "This is the route for deleting the son from the sonsSaved list" });
+    } catch (e) {
+        console.log(e);
+        return next(err);
     }
 }

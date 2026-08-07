@@ -59,7 +59,6 @@ module.exports.deleteUser = async (req, res) => {
 }
 
 module.exports.register = async (req, res, next) => {
-    console.log(req.body);
     try {
         const { email, password, role } = req.body;
         const user = new User({ email, role });
