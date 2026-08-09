@@ -11,7 +11,7 @@ const ParentSchema = new Schema({
     job: { type: String, default: "" },
     address: { type: AddressSchema, default: {} },
     sonAgeMin: { type: Number, min: 18, max: 94, default: 18 },
-    sonAgeMax: { type: Number, min: 23, max: 99, default: 99 },
+    sonAgeMax: { type: Number, min: 23, max: 100, default: 100 },
     sonsFriends: {
         dateWhenLastSonAdded: Date,
         sonsFriendsArray: [

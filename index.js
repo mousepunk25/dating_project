@@ -69,7 +69,7 @@ const sessionConfig = {
     cookie: {
         httpOnly: true,
         secure: isProduction, // Requires HTTPS (or trust proxy)
-        maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days in ms (automatically sets expires)
+        maxAge: 1000 * 60 * 60 * 24, // 1 day in ms (automatically sets expires)
         sameSite: isProduction ? 'none' : 'lax' // 'none' requires HTTPS across all modern browsers
     }
 };

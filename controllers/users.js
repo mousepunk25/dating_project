@@ -60,12 +60,12 @@ module.exports.deleteUser = async (req, res) => {
 
 module.exports.register = async (req, res, next) => {
     try {
-        const { email, password, role } = req.body;
+        const { email, password, role, fullNameParent, jobParent, cityParent, fullNameSon, dateOfBirth, citySon, aboutYou, jobSon, education} = req.body;
         const user = new User({ email, role });
         const registeredUser = await User.register(user, password);
         let profileId = '';
         if (role === 'parent') {
-            const parentProfile = new ParentProfile({ owner: registeredUser._id });
+            const parentProfile = new ParentProfile({ owner: registeredUser._id, fullName: fullNameParent, job: jobParent, address: {city: cityParent, country: '', longitude: '', latitude: ''}, sonAgeMin: 18, sonAgeMax: 100});
             try {
                 await parentProfile.save();
                 profileId = parentProfile._id;
@@ -97,7 +97,7 @@ module.exports.register = async (req, res, next) => {
             } catch (e) {
                 return next(e);
             }
-            const sonProfile = new SonProfile({ owner: registeredUser._id, image});
+            const sonProfile = new SonProfile({ owner: registeredUser._id, image, fullName: fullNameSon, dateOfBirth, address: {city: citySon, country: '', longitude: '', latitude: ''}, aboutYou, job: {position: jobSon, location: {}, companyName: ''}, education: {schoolName: '', educationLevel: education, field: ''}});
             try {
                 await sonProfile.save();
                 profileId = sonProfile._id;

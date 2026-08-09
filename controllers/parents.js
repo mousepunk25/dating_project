@@ -119,7 +119,10 @@ module.exports.sonsWithRequestSentRegister = async (req, res, next) => {
             return res.json({ "message": "This man was on your 'Want To Be Added' list." });
         } else {
             parentProfile.sonsWithRequestSent.sonsWithRequestSentArray.push(sonid);
+            let sonProfile = await SonProfile.findById(sonid);
+            sonProfile.parentsWhoWantToBeAdded.push(id);
             await parentProfile.save();
+            await sonProfile.save();
             return res.json({
                 "message": "This man was added to your friend's list.",
                 "status": 200

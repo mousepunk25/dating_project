@@ -15,18 +15,18 @@ router.route('/:id')
 router.put('/edit/:id', isLoggedIn, isProfileOwner({type: 'son'}), sons.validateUpdateSon, catchAsync(sons.updateSon));
 
 router.get('/:id/parentswithrequestsent', isLoggedIn, isProfileOwner({type: 'son'}), catchAsync(sons.parentsWithRequestSentShow));
-router.post('/:id/parentswithrequestsent/:sonid', isLoggedIn, isProfileOwner({type: 'son'}), catchAsync(sons.parentsWithRequestSentRegister));
-router.delete('/:id/parentswithrequestsent/:sonid', isLoggedIn, isProfileOwner({type: 'son'}), catchAsync(sons.parentsWithRequestSentDelete));
+router.post('/:id/parentswithrequestsent/:parentid', isLoggedIn, isProfileOwner({type: 'son'}), catchAsync(sons.parentsWithRequestSentRegister));
+router.delete('/:id/parentswithrequestsent/:parentid', isLoggedIn, isProfileOwner({type: 'son'}), catchAsync(sons.parentsWithRequestSentDelete));
 
 router.get('/:id/parentswhowanttobeadded', isLoggedIn, isProfileOwner({type: 'son'}), catchAsync(sons.parentsWhoWantToBeAddedShow));
-router.post('/:id/parentswhowanttobeadded/:sonid', isLoggedIn, isProfileOwner({type: 'son'}), catchAsync(sons.parentsWhoWantToBeAddedAccept));
-router.delete('/:id/parentswhowanttobeadded/:sonid', isLoggedIn, isProfileOwner({type: 'son'}), catchAsync(sons.parentsWhoWantToBeAddedDelete));
+router.post('/:id/parentswhowanttobeadded/:parentid', isLoggedIn, isProfileOwner({type: 'son'}), catchAsync(sons.parentsWhoWantToBeAddedAccept));
+router.delete('/:id/parentswhowanttobeadded/:parentid', isLoggedIn, isProfileOwner({type: 'son'}), catchAsync(sons.parentsWhoWantToBeAddedDelete));
 
 router.get('/:id/parentsfriends', isLoggedIn, isProfileOwner({type: 'son'}), catchAsync(sons.parentsFriendsShow));
-router.delete('/:id/parentsfriends/:sonid', isLoggedIn, isProfileOwner({type: 'son'}), catchAsync(sons.parentsFriendsDelete));
+router.delete('/:id/parentsfriends/:parentid', isLoggedIn, isProfileOwner({type: 'son'}), catchAsync(sons.parentsFriendsDelete));
 
 router.get('/:id/parentssaved', isLoggedIn, isProfileOwner({type: 'son'}), catchAsync(sons.parentsSavedShow));
-router.post('/:id/parentssaved/:sonid', isLoggedIn, isProfileOwner({type: 'son'}), catchAsync(sons.parentsSavedRegister));
-router.delete('/:id/parentssaved/:sonid', isLoggedIn, isProfileOwner({type: 'son'}), catchAsync(sons.parentsSavedDelete));
+router.post('/:id/parentssaved/:parentid', isLoggedIn, isProfileOwner({type: 'son'}), catchAsync(sons.parentsSavedRegister));
+router.delete('/:id/parentssaved/:parentid', isLoggedIn, isProfileOwner({type: 'son'}), catchAsync(sons.parentsSavedDelete));
 
 module.exports = router;

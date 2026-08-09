@@ -3,6 +3,7 @@ const { param, query, body, validationResult } = require('express-validator');
 const moment = require('moment');
 const User = require('../models/user');
 const SonProfile = require('../models/sonProfile');
+const ParentProfile = require('../models/parentProfile');
 
 const escapeRegex = (text) => text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
 
@@ -251,13 +252,17 @@ module.exports.parentsWithRequestSentRegister = async (req, res, next) => {
             return res.json({ "message": "This parent was on your 'Want To Be Added' list." });
         } else {
             sonProfile.parentsWithRequestSent.parentsWithRequestSentArray.push(parentid);
+            let parentProfile = await ParentProfile.findById(parentid);
+            parentProfile.sonsWhoWantToBeAdded.push(id);
             await sonProfile.save();
+            await parentProfile.save();
             return res.json({
                 "message": "This parent was added to your friend's list.",
                 "status": 200
             })
         }
     } catch (e) {
+        console.log(e);
         return res.json({ "message": "Something went wrong" });
     }
 }
