@@ -4,6 +4,7 @@ const moment = require('moment');
 const User = require('../models/user');
 const SonProfile = require('../models/sonProfile');
 const ParentProfile = require('../models/parentProfile');
+const Conversation = require('../models/conversation');
 
 const escapeRegex = (text) => text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
 
@@ -231,41 +232,68 @@ module.exports.parentsWithRequestSentShow = async (req, res) => {
 }
 
 module.exports.parentsWithRequestSentRegister = async (req, res, next) => {
-    const { id, parentid } = req.params;
+    const { id, parentid } = req.params; // id = SonProfile ID, parentid = ParentProfile ID
     try {
         let sonProfile = await SonProfile.findById(id);
         const isParentFriend = sonProfile.parentsFriends.parentsFriendsArray.some(pF => pF.equals(parentid));
         const isParentWithRequestSent = sonProfile.parentsWithRequestSent.parentsWithRequestSentArray.some(pW => pW.equals(parentid));
         const isParentWhoWantToBeAdded = sonProfile.parentsWhoWantToBeAdded.some(pW => pW.equals(parentid));
+
         if (isParentFriend) {
             return res.json({ "message": "This parent is already on your friend's list" });
         } else if (isParentWithRequestSent) {
             return res.json({ "message": "You've already sent a request to this parent" });
         } else if (isParentWhoWantToBeAdded) {
+            // 1. Update Son and Parent profile relationships
             sonProfile.parentsFriends.parentsFriendsArray.push(parentid);
             sonProfile.parentsWhoWantToBeAdded = sonProfile.parentsWhoWantToBeAdded.filter(s => !s.equals(parentid));
+            
             let parentProfile = await ParentProfile.findById(parentid);
             parentProfile.sonsFriends.sonsFriendsArray.push(id);
-            parentProfile.sonsWithRequestSent = parentProfile.sonsWithRequestSent.sonsWithRequestSentArray.filter(s => !s.equals(id));
+            parentProfile.sonsWithRequestSent.sonsWithRequestSentArray = 
+                parentProfile.sonsWithRequestSent.sonsWithRequestSentArray.filter(s => !s.equals(id));
+
+            // 2. Find or create a new Conversation
+            let conversation = await Conversation.findOne({
+                participantParent: parentid,
+                participantSon: id
+            });
+
+            if (!conversation) {
+                conversation = new Conversation({
+                    participantParent: parentid,
+                    participantSon: id
+                });
+                await conversation.save();
+            }
+
+            // 3. Save updated profiles
             await sonProfile.save();
             await parentProfile.save();
-            return res.json({ "message": "This parent was on your 'Want To Be Added' list." });
+
+            return res.json({ 
+                "message": "This parent was on your 'Want To Be Added' list.",
+                "conversationId": conversation._id
+            });
         } else {
+            // Standard request sending path
             sonProfile.parentsWithRequestSent.parentsWithRequestSentArray.push(parentid);
             let parentProfile = await ParentProfile.findById(parentid);
             parentProfile.sonsWhoWantToBeAdded.push(id);
+
             await sonProfile.save();
             await parentProfile.save();
+
             return res.json({
-                "message": "This parent was added to your friend's list.",
+                "message": "Request sent successfully.",
                 "status": 200
-            })
+            });
         }
     } catch (e) {
         console.log(e);
         return res.json({ "message": "Something went wrong" });
     }
-}
+};
 
 module.exports.parentsWithRequestSentDelete = async (req, res, next) => {
     const { id, parentid } = req.params;
@@ -289,30 +317,56 @@ module.exports.parentsWhoWantToBeAddedShow = async (req, res, next) => {
 }
 
 module.exports.parentsWhoWantToBeAddedAccept = async (req, res, next) => {
-    const { id, parentid } = req.params;
+    const { id, parentid } = req.params; // id = SonProfile ID, parentid = ParentProfile ID
     try {
         let sonProfile = await SonProfile.findById(id);
         const isParentFriend = sonProfile.parentsFriends.parentsFriendsArray.some(pF => pF.equals(parentid));
         const isParentWhoWantToBeAdded = sonProfile.parentsWhoWantToBeAdded.some(pW => pW.equals(parentid));
+
         if (isParentFriend) {
             return res.json({ "message": "This man is already on your friend's list" });
         } else if (isParentWhoWantToBeAdded) {
+            // 1. Update Son and Parent profile relationships
             sonProfile.parentsFriends.parentsFriendsArray.push(parentid);
             sonProfile.parentsWhoWantToBeAdded = sonProfile.parentsWhoWantToBeAdded.filter(s => !s.equals(parentid));
+            
             let parentProfile = await ParentProfile.findById(parentid);
             parentProfile.sonsFriends.sonsFriendsArray.push(id);
-            parentProfile.sonsWithRequestSent = parentProfile.sonsWithRequestSent.sonsWithRequestSentArray.filter(p => !p.equals(id));
+            parentProfile.sonsWithRequestSent.sonsWithRequestSentArray = 
+                parentProfile.sonsWithRequestSent.sonsWithRequestSentArray.filter(p => !p.equals(id));
+
+            // 2. Find or create Conversation using participantParent and participantSon
+            let conversation = await Conversation.findOne({
+                participantParent: parentid,
+                participantSon: id
+            });
+
+            console.log(conversation);
+            if (!conversation) {
+                conversation = new Conversation({
+                    participantParent: parentid,
+                    participantSon: id
+                });
+                console.log(conversation);
+                await conversation.save();
+            }
+
+            // 3. Save profile updates
             await sonProfile.save();
             await parentProfile.save();
-            return res.json({"message": "This parent was added to your Friends List"});
+
+            return res.json({ 
+                "message": "This parent was added to your Friends List",
+                "conversationId": conversation._id 
+            });
         } else {
-            return res.json({"message": "This parent is not on your 'Want to be added' list"});
+            return res.json({ "message": "This parent is not on your 'Want to be added' list" });
         }
     } catch (e) {
         console.log(e.message);
         return res.json({ "message": "Something went wrong" });
     }
-}
+};
 
 module.exports.parentsWhoWantToBeAddedDelete = async (req, res, next) => {
     const { id, parentid } = req.params;
@@ -386,7 +440,7 @@ module.exports.parentsSavedRegister = async (req, res, next) => {
     }
 }
 
-module.exports.arentsSavedDelete = async (req, res, next) => {
+module.exports.parentsSavedDelete = async (req, res, next) => {
     const { id, parentid } = req.params;
     try {
         res.json({"message": "This is the route for deleting the parent from the parentsSaved list"});

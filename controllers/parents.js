@@ -3,6 +3,7 @@ const { query } = require('express-validator');
 const User = require('../models/user');
 const ParentProfile = require('../models/parentProfile');
 const SonProfile = require('../models/sonProfile');
+const Conversation = require('../models/conversation');
 
 // 1. Define validation rules
 module.exports.validateIndex = [
@@ -98,40 +99,68 @@ module.exports.sonsWithRequestSentShow = async (req, res) => {
 }
 
 module.exports.sonsWithRequestSentRegister = async (req, res, next) => {
-    const { id, sonid } = req.params;
+    const { id, sonid } = req.params; // id = ParentProfile ID, sonid = SonProfile ID
     try {
         let parentProfile = await ParentProfile.findById(id);
         const isSonFriend = parentProfile.sonsFriends.sonsFriendsArray.some(sF => sF.equals(sonid));
         const isSonWithRequestSent = parentProfile.sonsWithRequestSent.sonsWithRequestSentArray.some(sW => sW.equals(sonid));
         const isSonWhoWantToBeAdded = parentProfile.sonsWhoWantToBeAdded.some(sW => sW.equals(sonid));
+
         if (isSonFriend) {
             return res.json({ "message": "This man is already on your friend's list" });
         } else if (isSonWithRequestSent) {
             return res.json({ "message": "You've already sent a request to him" });
         } else if (isSonWhoWantToBeAdded) {
+            // 1. Update Parent and Son profile relationships
             parentProfile.sonsFriends.sonsFriendsArray.push(sonid);
             parentProfile.sonsWhoWantToBeAdded = parentProfile.sonsWhoWantToBeAdded.filter(s => !s.equals(sonid));
+            
             let sonProfile = await SonProfile.findById(sonid);
             sonProfile.parentsFriends.parentsFriendsArray.push(id);
-            sonProfile.parentsWithRequestSent = sonProfile.parentsWithRequestSent.parentsWithRequestSentArray.filter(p => !p.equals(id));
+            sonProfile.parentsWithRequestSent.parentsWithRequestSentArray = 
+                sonProfile.parentsWithRequestSent.parentsWithRequestSentArray.filter(p => !p.equals(id));
+
+            // 2. Find or create a new Conversation
+            let conversation = await Conversation.findOne({
+                participantParent: id,
+                participantSon: sonid
+            });
+
+            if (!conversation) {
+                conversation = new Conversation({
+                    participantParent: id,
+                    participantSon: sonid
+                });
+                await conversation.save();
+            }
+
+            // 3. Save updated profiles
             await parentProfile.save();
             await sonProfile.save();
-            return res.json({ "message": "This man was on your 'Want To Be Added' list." });
+
+            return res.json({ 
+                "message": "This man was on your 'Want To Be Added' list.",
+                "conversationId": conversation._id
+            });
         } else {
+            // Standard request sending path
             parentProfile.sonsWithRequestSent.sonsWithRequestSentArray.push(sonid);
             let sonProfile = await SonProfile.findById(sonid);
             sonProfile.parentsWhoWantToBeAdded.push(id);
+
             await parentProfile.save();
             await sonProfile.save();
+
             return res.json({
-                "message": "This man was added to your friend's list.",
+                "message": "Request sent successfully.",
                 "status": 200
-            })
+            });
         }
     } catch (e) {
+        console.log(e);
         return res.json({ "message": "Something went wrong" });
     }
-}
+};
 
 module.exports.sonsWithRequestSentDelete = async (req, res, next) => {
     const { id, sonid } = req.params;
@@ -155,22 +184,45 @@ module.exports.sonsWhoWantToBeAddedShow = async (req, res, next) => {
 }
 
 module.exports.sonsWhoWantToBeAddedAccept = async (req, res, next) => {
-    const { id, sonid } = req.params;
+    const { id, sonid } = req.params; // id = ParentProfile ID, sonid = SonProfile ID
     try {
         let parentProfile = await ParentProfile.findById(id);
         const isSonFriend = parentProfile.sonsFriends.sonsFriendsArray.some(sF => sF.equals(sonid));
         const isSonWhoWantToBeAdded = parentProfile.sonsWhoWantToBeAdded.some(sW => sW.equals(sonid));
+
         if (isSonFriend) {
             return res.json({ "message": "This man is already on your friend's list" });
         } else if (isSonWhoWantToBeAdded) {
+            // 1. Update Parent and Son profiles
             parentProfile.sonsFriends.sonsFriendsArray.push(sonid);
             parentProfile.sonsWhoWantToBeAdded = parentProfile.sonsWhoWantToBeAdded.filter(s => !s.equals(sonid));
+            
             let sonProfile = await SonProfile.findById(sonid);
             sonProfile.parentsFriends.parentsFriendsArray.push(id);
-            sonProfile.parentsWithRequestSent = sonProfile.parentsWithRequestSent.parentsWithRequestSentArray.filter(p => !p.equals(id));
+            sonProfile.parentsWithRequestSent.parentsWithRequestSentArray = 
+                sonProfile.parentsWithRequestSent.parentsWithRequestSentArray.filter(p => !p.equals(id));
+
+            // 2. Find or create Conversation using participantParent and participantSon
+            let conversation = await Conversation.findOne({
+                participantParent: id,
+                participantSon: sonid
+            });
+
+            if (!conversation) {
+                conversation = new Conversation({
+                    participantParent: id,
+                    participantSon: sonid
+                });
+                await conversation.save();
+            }
+
             await parentProfile.save();
             await sonProfile.save();
-            return res.json({ "message": "This son was added to your Friends List" });
+
+            return res.json({ 
+                "message": "This son was added to your Friends List",
+                "conversationId": conversation._id 
+            });
         } else {
             return res.json({ "message": "This man is not on your 'Want to be added' list" });
         }
@@ -178,7 +230,7 @@ module.exports.sonsWhoWantToBeAddedAccept = async (req, res, next) => {
         console.log(e.message);
         return res.json({ "message": "Something went wrong" });
     }
-}
+};
 
 module.exports.sonsWhoWantToBeAddedDelete = async (req, res, next) => {
     const { id, sonid } = req.params;
