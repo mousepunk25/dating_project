@@ -11,6 +11,7 @@ const userRoutes = require('./routes/users');
 const adminsRoutes = require('./routes/admins');
 const sonRoutes = require('./routes/sons');
 const parentRoutes = require('./routes/parents');
+const conversationRoutes = require('./routes/conversations');
 const methodOverride = require('method-override');
 const passport = require('passport');
 const LocalStrategy = require('passport-local');
@@ -92,6 +93,7 @@ app.use('/', userRoutes);
 app.use('/admins', adminsRoutes);
 app.use('/sons', sonRoutes);
 app.use('/parents', parentRoutes);
+app.use('/conversations', conversationRoutes);
 
 app.get('/', (req, res) => {
     res.send('Hello!');

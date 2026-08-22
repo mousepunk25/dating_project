@@ -1,7 +1,7 @@
-const Conversation = require('../models/Conversation');
-const SonProfile = require('./models/sonProfile');
-const ParentProfile = require('./models/parentProfile');
-const Message = require('../models/Message');
+const Conversation = require('../models/conversation');
+const SonProfile = require('../models/sonProfile');
+const ParentProfile = require('../models/parentProfile');
+const Message = require('../models/message');
 
 module.exports.getUserConversations = async (req, res) => {
     try {
@@ -32,11 +32,11 @@ module.exports.getUserConversations = async (req, res) => {
         })
         .populate({
             path: 'participantParent',
-            select: 'fullName job address owner'
+            select: 'fullName owner'
         })
         .populate({
             path: 'participantSon',
-            select: 'fullName job owner'
+            select: 'fullName owner'
         })
         .populate({
             path: 'lastMessage',
@@ -110,6 +110,28 @@ module.exports.getSingleConversation = async (req, res) => {
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(limit);
+
+        // 4. Mark unread fetched messages as read for the current user
+        const messageIds = messages.map(msg => msg._id);
+
+        if (messageIds.length > 0) {
+            await Message.updateMany(
+                {
+                    _id: { $in: messageIds },
+                    readBy: { $ne: currentUserId }
+                },
+                {
+                    $addToSet: { readBy: currentUserId }
+                }
+            );
+
+            // Optional: Update local document instances so API response reflects the read status
+            messages.forEach(msg => {
+                if (!msg.readBy.some(id => id.toString() === currentUserId.toString())) {
+                    msg.readBy.push(currentUserId);
+                }
+            });
+        }
 
         // Reverse back to chronological order (oldest to newest)
         messages.reverse();

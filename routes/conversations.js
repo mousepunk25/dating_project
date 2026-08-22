@@ -4,10 +4,10 @@ const { getUserConversations, getSingleConversation } = require('../controllers/
 const { sendMessage } = require('../controllers/messages');
 const { isLoggedIn } = require('../middleware');
 
-router.get('/conversations', isLoggedIn, getUserConversations);
+router.get('/', isLoggedIn, getUserConversations);
 
-router.get('/conversations/:conversationId', isLoggedIn, getSingleConversation);
+router.get('/:conversationId', isLoggedIn, getSingleConversation);
 
-router.post('/conversations/:conversationId/messages', isLoggedIn, sendMessage);
+router.post('/:conversationId/messages', isLoggedIn, sendMessage);
 
 module.exports = router;

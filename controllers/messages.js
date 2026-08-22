@@ -1,7 +1,7 @@
-const Conversation = require('../models/Conversation');
-const Message = require('../models/Message');
-const ParentProfile = require('../models/ParentProfile');
-const SonProfile = require('../models/SonProfile');
+const Conversation = require('../models/conversation');
+const Message = require('../models/message');
+const ParentProfile = require('../models/parentProfile');
+const SonProfile = require('../models/sonProfile');
 
 module.exports.sendMessage = async (req, res) => {
     try {
