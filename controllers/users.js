@@ -58,59 +58,126 @@ module.exports.deleteUser = async (req, res) => {
     }
 }
 
+// Configure Cloudinary once outside the function or at application startup
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
 module.exports.register = async (req, res, next) => {
     try {
-        const { email, password, role, fullNameParent, jobParent, cityParent, fullNameSon, dateOfBirth, citySon, aboutYou, jobSon, education} = req.body;
+        const {
+            email,
+            password,
+            role,
+            fullNameParent,
+            jobParent,
+            cityParent,
+            fullNameSon,
+            dateOfBirth,
+            citySon,
+            aboutYou,
+            jobSon,
+            educationLevel,
+            image: imageInput // optional base64 string or file path from client
+        } = req.body;
+
         const user = new User({ email, role });
         const registeredUser = await User.register(user, password);
         let profileId = '';
-        if (role === 'parent') {
-            const parentProfile = new ParentProfile({ owner: registeredUser._id, fullName: fullNameParent, job: jobParent, address: {city: cityParent, country: '', longitude: '', latitude: ''}, sonAgeMin: 18, sonAgeMax: 100});
-            try {
-                await parentProfile.save();
-                profileId = parentProfile._id;
-            } catch (e) {
-                console.log(e);
-            }
-        } else if (role === 'son') {
-            let image = {};
-            // cloudinary.config({
-            //     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-            //     api_key: process.env.CLOUDINARY_API_KEY,
-            //     api_secret: process.env.CLOUDINARY_API_SECRET
-            // });
-            try {
-                // const uploadResult = await cloudinary.uploader
-                // .upload(
-                //     path.join(__dirname, '../public/image_placeholder'), {
-                //     public_id: 'profile_picture',
-                // }
-                // )
-                // .catch((error) => {
-                //     console.log(error);
-                // });
 
-            image = {
-                url: 'https://res.cloudinary.com/gljkxoem/image/upload/v1784026809/shoes.jpg',
-                filename: 'Profile Picture'
-            };
-            } catch (e) {
-                return next(e);
-            }
-            const sonProfile = new SonProfile({ owner: registeredUser._id, image, fullName: fullNameSon, dateOfBirth, address: {city: citySon, country: '', longitude: '', latitude: ''}, aboutYou, job: {position: jobSon, location: {}, companyName: ''}, education: {schoolName: '', educationLevel: education, field: ''}});
+        if (role === 'parent') {
+            const parentProfile = new ParentProfile({
+                owner: registeredUser._id,
+                fullName: fullNameParent,
+                job: jobParent,
+                address: { city: cityParent, country: '', longitude: '', latitude: '' },
+                sonAgeMin: 18,
+                sonAgeMax: 100
+            });
+            await parentProfile.save();
+            profileId = parentProfile._id;
+
+        } else if (role === 'son') {
+            let imageObj = {};
+            const placeholderPath = path.join(__dirname, '../public/image_placeholder.jpg');
+
             try {
-                await sonProfile.save();
-                profileId = sonProfile._id;
+                // Determine source to upload
+                const sourceToUpload = imageInput || placeholderPath;
+
+                // 1. Upload with Rekognition AI Moderation enabled
+                const uploadResult = await cloudinary.uploader.upload(sourceToUpload, {
+                    folder: 'profile_pictures',
+                    moderation: 'aws_rek' // Triggers Rekognition AI Moderation
+                });
+
+                // 2. Check Moderation Status
+                let isApproved = true;
+                if (uploadResult.moderation && uploadResult.moderation.length > 0) {
+                    const moderationStatus = uploadResult.moderation[0].status;
+                    if (moderationStatus === 'rejected' || moderationStatus === 'pending') {
+                        isApproved = false;
+                    }
+                }
+
+                if (isApproved) {
+                    imageObj = {
+                        url: uploadResult.secure_url,
+                        filename: uploadResult.public_id
+                    };
+                } else {
+                    // Image failed moderation: Remove flagged upload and upload placeholder
+                    await cloudinary.uploader.destroy(uploadResult.public_id);
+
+                    const fallbackUpload = await cloudinary.uploader.upload(placeholderPath, {
+                        folder: 'profile_pictures'
+                    });
+
+                    imageObj = {
+                        url: fallbackUpload.secure_url,
+                        filename: fallbackUpload.public_id
+                    };
+                }
             } catch (e) {
-                console.log(e);
+                console.error('Cloudinary upload or moderation failed:', e);
+
+                // Fallback to uploading placeholder if an error occurs during upload
+                try {
+                    const fallbackUpload = await cloudinary.uploader.upload(placeholderPath, {
+                        folder: 'profile_pictures'
+                    });
+                    imageObj = {
+                        url: fallbackUpload.secure_url,
+                        filename: fallbackUpload.public_id
+                    };
+                } catch (fallbackError) {
+                    return next(fallbackError);
+                }
             }
+
+            const sonProfile = new SonProfile({
+                owner: registeredUser._id,
+                image: imageObj,
+                fullName: fullNameSon,
+                dateOfBirth,
+                address: { city: citySon },
+                aboutYou,
+                job: { position: jobSon, companyName: '' },
+                education: { educationLevel: educationLevel }
+            });
+
+            await sonProfile.save();
+            profileId = sonProfile._id;
         }
+
         req.login(registeredUser, err => {
             if (err) return next(err);
             res.redirect(`${frontendURL}/myprofile?profileid=${profileId}&role=${role}`);
-        })
+        });
     } catch (e) {
-        console.log(e.message);
+        console.error(e.message);
         res.redirect('register');
     }
-}
+};

@@ -36,7 +36,7 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(express.json());
 app.use(methodOverride('_method'));
 app.use(express.static(path.join(__dirname, 'public')));

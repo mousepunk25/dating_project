@@ -1,4 +1,5 @@
 const { param, query, body, validationResult } = require('express-validator');
+const cloudinary = require('cloudinary').v2;
 
 const moment = require('moment');
 const User = require('../models/user');
@@ -199,20 +200,71 @@ module.exports.updateSon = async (req, res, next) => {
   const { id } = req.params;
 
   try {
-    // { new: true, runValidators: true } ensures the updated doc is returned 
-    // and schema validators run on update
-    const sonProfile = await SonProfile.findByIdAndUpdate(
-      id,
-      { $set: req.body },
-      { new: true, runValidators: true }
-    );
+    const { 
+      fullName, 
+      aboutYou, 
+      dateOfBirth, 
+      address, 
+      job, 
+      education, 
+      socialMedia, 
+      image 
+    } = req.body;
+
+    console.log(education);
+
+    // Fetch existing profile first
+    const sonProfile = await SonProfile.findById(id);
 
     if (!sonProfile) {
       return res.status(404).json({ message: "Son profile not found" });
     }
 
-    return res.json({ message: "Your profile has been updated!" });
+    // Handle Image Upload if a new Base64 or image string is provided
+    let imageObj = sonProfile.image;
+    if (image && typeof image === 'string' && image.startsWith('data:image')) {
+      // Delete previous Cloudinary image if it exists to clean up storage
+      if (sonProfile.image && sonProfile.image.filename) {
+        await cloudinary.uploader.destroy(sonProfile.image.filename);
+      }
+
+      // Upload new image
+      const uploadResult = await cloudinary.uploader.upload(image, {
+        folder: 'profile_pictures'
+      });
+
+      imageObj = {
+        url: uploadResult.secure_url,
+        filename: uploadResult.public_id
+      };
+    }
+
+    // Prepare update payload
+    const updateFields = {
+      ...(fullName && { fullName }),
+      ...(aboutYou !== undefined && { aboutYou }),
+      ...(dateOfBirth && { dateOfBirth }),
+      ...(address && { address }),
+      ...(job && { job }),
+      ...(education && { education }),
+      ...(socialMedia && { socialMedia }),
+      image: imageObj
+    };
+
+    // Update document and run Mongoose schema validators
+    const updatedProfile = await SonProfile.findByIdAndUpdate(
+      id,
+      { $set: updateFields },
+      { new: true, runValidators: true }
+    );
+
+    return res.json({ 
+      message: "Your profile has been updated!", 
+      profile: updatedProfile 
+    });
+
   } catch (e) {
+    console.error("Error updating son profile:", e);
     return res.status(500).json({ message: "There was some issue with updating your profile" });
   }
 };
