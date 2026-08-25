@@ -1,6 +1,5 @@
 const { query } = require('express-validator');
 
-const User = require('../models/user');
 const ParentProfile = require('../models/parentProfile');
 const SonProfile = require('../models/sonProfile');
 const Conversation = require('../models/conversation');
@@ -21,11 +20,6 @@ module.exports.validateIndex = [
 ];
 
 module.exports.index = async (req, res) => {
-    // Check for validation errors
-    // if (!errors.isEmpty()) {
-    //     return res.status(400).json({ errors: errors.array() });
-    // }
-    // Parse defaults if query parameters weren't provided
     const sonAge = req.query.sonAge ?? -1;
     const city = req.query.city ?? '.*';
     try {

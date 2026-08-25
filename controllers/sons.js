@@ -40,7 +40,6 @@ module.exports.validateIndex = [
 
 // 2. Controller Action
 module.exports.index = async (req, res) => {
-  // Check for validation errors
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
@@ -48,22 +47,52 @@ module.exports.index = async (req, res) => {
 
   const ageMin = req.query.ageMin ?? 18;
   const ageMax = req.query.ageMax ?? 100;
-
-  // Clean & safe regex for city query
   const city = req.query.city ? escapeRegex(req.query.city) : '.*';
 
-  // Calculate DOB range
-  const dateMax = moment().subtract(ageMin, 'years').format('YYYY-MM-DD');
-  const dateMin = moment().subtract(ageMax, 'years').format('YYYY-MM-DD');
+  // 1. Convert to actual JavaScript Date objects
+  const dateMax = moment().subtract(ageMin, 'years').endOf('day').toDate();
+  const dateMin = moment().subtract(ageMax, 'years').startOf('day').toDate();
+
+  // 2. Safely parse & validate ObjectIds from cookies
+  let excludedIds = [];
+  if (req.cookies?.displayedSonsIds) {
+    try {
+      const rawCookie = req.cookies.displayedSonsIds;
+      const parsedArray = typeof rawCookie === 'string' ? JSON.parse(rawCookie) : rawCookie;
+
+      if (Array.isArray(parsedArray)) {
+        excludedIds = parsedArray
+          .filter(id => mongoose.Types.ObjectId.isValid(id))
+          .map(id => new mongoose.Types.ObjectId(id));
+      }
+    } catch (e) {
+      excludedIds = [];
+    }
+  }
 
   try {
-    const sons = await SonProfile.find(
+    const queryMatch = {
+      dateOfBirth: { $gte: dateMin, $lte: dateMax },
+      "address.city": { $regex: city, $options: 'i' }
+    };
+
+    if (excludedIds.length > 0) {
+      queryMatch._id = { $nin: excludedIds };
+    }
+
+    const sons = await SonProfile.aggregate([
+      { $match: queryMatch },
+      { $sample: { size: 100 } },
       {
-        dateOfBirth: { $gte: dateMin, $lte: dateMax },
-        "address.city": { $regex: city, $options: 'i' }
-      },
-      'dateOfBirth address job image fullName'
-    );
+        $project: {
+          dateOfBirth: 1,
+          address: 1,
+          job: 1,
+          image: 1,
+          fullName: 1
+        }
+      }
+    ]);
 
     res.json(sons);
   } catch (err) {
