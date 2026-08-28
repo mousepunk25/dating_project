@@ -6,14 +6,15 @@ const UserSchema = new Schema({
     email: {
         type: String,
         required: true,
-        unique: true
+        unique: true,
+        maxlength: [400, 'Email cannot exceed 400 characters']
     },
     role: {
         type: String,
         enum: ['admin', 'son', 'parent']
     }
-})
+});
 
-UserSchema.plugin(passportLocalMongoose, {usernameField: 'email'});
+UserSchema.plugin(passportLocalMongoose, { usernameField: 'email' });
 
 module.exports = mongoose.model('User', UserSchema);

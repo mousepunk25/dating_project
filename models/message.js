@@ -15,7 +15,8 @@ const MessageSchema = new Schema({
     },
     text: {
         type: String,
-        required: true
+        required: true,
+        maxlength: [1000, 'Text cannot exceed 1000 characters']
     },
     readBy: [{
         type: Schema.Types.ObjectId,
