@@ -29,10 +29,21 @@ db.once("open", () => {
 });
 
 const app = express();
+
+const allowedOrigins = process.env.ENVIRONMENT_VERSION === 'dev' 
+    ? [process.env.DEV_FRONTEND_URL] 
+    : ['https://kawaliry.pl', 'https://www.kawaliry.pl'];
 const corsOptions = {
-    origin: process.env.ENVIRONMENT_VERSION === 'dev' ? process.env.DEV_FRONTEND_URL : process.env.PROD_FRONTEND_URL, // Replace with your exact frontend domain
-    credentials: true,       // This fixes the 'Access-Control-Allow-Credentials' error
-    optionsSuccessStatus: 200 // Some legacy browsers (IE11, various SmartTVs) choke on 204
+    origin: (origin, callback) => {
+        // Allow requests with no origin (e.g., mobile apps, Postman, server-to-server)
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true,
+    optionsSuccessStatus: 200
 };
 app.use(cors(corsOptions));
 
