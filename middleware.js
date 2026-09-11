@@ -37,3 +37,10 @@ module.exports.isProfileOwner = function (options) {
         }
     }
 }
+
+module.exports.isEmailVerified = (req, res, next) => {
+    if (req.isAuthenticated() && !req.user.isVerified) {
+        return res.status(403).json({ error: 'Please verify your email address first.' });
+    }
+    next();
+};

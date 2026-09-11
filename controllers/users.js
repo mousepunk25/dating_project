@@ -1,37 +1,61 @@
+const crypto = require('crypto');
 const path = require('path');
 const User = require('../models/user');
 const SonProfile = require('../models/sonProfile');
 const ParentProfile = require('../models/parentProfile');
 const cloudinary = require('cloudinary').v2;
-const frontendURL = process.env.ENVIRONMENT_VERSION === 'dev' ? process.env.DEV_FRONTEND_URL : process.env.PROD_FRONTEND_URL;
+const sendVerificationEmail = require('../utils/sendVerificationEmail');
+const passport = require('passport');
+
+const frontendURL = process.env.ENVIRONMENT_VERSION === 'dev'
+    ? process.env.DEV_FRONTEND_URL
+    : process.env.PROD_FRONTEND_URL;
 
 module.exports.renderLogin = (req, res) => {
     res.sendFile(path.join(__dirname, '../views/login.html'));
 }
 
-module.exports.login = async (req, res) => {
-    const foundSonProfiles = await SonProfile.find().populate({
-        path: 'owner',
-        select: '_id'
-    }).exec();
-    const foundSonProfile = foundSonProfiles.find(fSP => fSP.owner._id.equals(req.user._id));
-    let profileId = null;
-    let role = null;
-    if (foundSonProfile) {
-        profileId = foundSonProfile._id;
-        role = 'son';
-    } else {
-        const foundParentProfiles = await ParentProfile.find().populate({
-            path: 'owner',
-            select: '_id'
-        }).exec();
-        const foundParentProfile = foundParentProfiles.find(fPP => fPP.owner._id.equals(req.user._id));
-        if (foundParentProfile) {
-            profileId = foundParentProfile._id;
-            role = 'parent';
+module.exports.login = (req, res, next) => {
+    passport.authenticate('local', (err, user, info) => {
+        if (err) return next(err);
+
+        if (!user) {
+            // Check if the user exists but is unverified to give a helpful message
+            User.findOne({ email: req.body.username }).then(foundUser => {
+                if (foundUser && !foundUser.isVerified) {
+                    return res.redirect(`${frontendURL}/myprofile?error=email-not-verified`);
+                }
+                return res.redirect(`${frontendURL}/myprofile?error=invalid-credentials`);
+            });
+            return;
         }
-    }
-    res.redirect(`${frontendURL}/myprofile?profileid=${profileId}&role=${role}`);
+
+        req.login(user, async (err) => {
+            if (err) return next(err);
+            const foundSonProfiles = await SonProfile.find().populate({
+                path: 'owner',
+                select: '_id'
+            }).exec();
+            const foundSonProfile = foundSonProfiles.find(fSP => fSP.owner._id.equals(user._id));
+            let profileId = null;
+            let role = null;
+            if (foundSonProfile) {
+                profileId = foundSonProfile._id;
+                role = 'son';
+            } else {
+                const foundParentProfiles = await ParentProfile.find().populate({
+                    path: 'owner',
+                    select: '_id'
+                }).exec();
+                const foundParentProfile = foundParentProfiles.find(fPP => fPP.owner._id.equals(req.user._id));
+                if (foundParentProfile) {
+                    profileId = foundParentProfile._id;
+                    role = 'parent';
+                }
+            }
+            res.redirect(`${frontendURL}/myprofile?profileid=${profileId}&role=${role}`);
+        });
+    })(req, res, next);
 }
 
 module.exports.logout = (req, res, next) => {
@@ -80,10 +104,21 @@ module.exports.register = async (req, res, next) => {
             aboutYou,
             jobSon,
             educationLevel,
-            image: imageInput // optional base64 string or file path from client
+            image: imageInput
         } = req.body;
 
-        const user = new User({ email, role });
+        const rawToken = crypto.randomBytes(32).toString('hex');
+        const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+        const tokenExpires = Date.now() + 24 * 60 * 60 * 1000;
+
+        const user = new User({
+            email,
+            role,
+            isVerified: false,
+            verificationToken: hashedToken,
+            verificationTokenExpires: tokenExpires
+        });
+
         const registeredUser = await User.register(user, password);
         let profileId = '';
 
@@ -172,12 +207,81 @@ module.exports.register = async (req, res, next) => {
             profileId = sonProfile._id;
         }
 
-        req.login(registeredUser, err => {
-            if (err) return next(err);
-            res.redirect(`${frontendURL}/myprofile?profileid=${profileId}&role=${role}`);
-        });
+        await sendVerificationEmail(registeredUser.email, rawToken);
+
+        res.redirect(`${frontendURL}/myprofile?status=verification-sent`);
+
     } catch (e) {
         console.error(e.message);
         res.redirect('register');
+    }
+};
+
+module.exports.verifyEmail = async (req, res) => {
+    const { token } = req.query;
+
+    if (!token) {
+        return res.redirect(`${frontendURL}/myprofile?error=missing-token`);
+    }
+
+    // Hash the token from query param to match what's in DB
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    const user = await User.findOne({
+        verificationToken: hashedToken,
+        verificationTokenExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+        return res.redirect(`${frontendURL}/myprofile?error=invalid-or-expired-token`);
+    }
+
+    // Mark verified & wipe token fields
+    user.isVerified = true;
+    user.verificationToken = undefined;
+    user.verificationTokenExpires = undefined;
+    await user.save();
+
+    res.redirect(`${frontendURL}/myprofile?verified=true`);
+};
+
+module.exports.resendVerificationEmail = async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({ error: 'Email is required' });
+        }
+
+        const user = await User.findOne({ email });
+
+        // Security practice: Return success even if email isn't found
+        // to prevent bad actors from checking registered email addresses.
+        if (!user || user.isVerified) {
+            return res.status(200).json({ 
+                message: 'If an unverified account exists with that email, a new link has been sent.' 
+            });
+        }
+
+        // 1. Generate new token & expiration
+        const rawToken = crypto.randomBytes(32).toString('hex');
+        const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+        const tokenExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 Hours
+
+        // 2. Update user document
+        user.verificationToken = hashedToken;
+        user.verificationTokenExpires = tokenExpires;
+        await user.save();
+
+        // 3. Resend email via Resend helper
+        await sendVerificationEmail(user.email, rawToken);
+
+        res.status(200).json({ 
+            message: 'If an unverified account exists with that email, a new link has been sent.' 
+        });
+
+    } catch (e) {
+        console.error('Error in resendVerificationEmail:', e);
+        res.status(500).json({ error: 'Something went wrong on our side. Please try again.' });
     }
 };

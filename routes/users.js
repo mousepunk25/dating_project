@@ -7,9 +7,12 @@ const User = require('../models/user');
 
 router.route('/login')
     .get(users.renderLogin)
-    .post(passport.authenticate('local', {failureMessage: 'Logging in unsuccessful'}), users.login)
+    .post(users.login)
 
 router.post('/register', users.register);
+
+router.get('/verify-email', users.verifyEmail);
+router.post('/resend-verification', users.resendVerificationEmail);
 
 router.get('/logout', users.logout)
 

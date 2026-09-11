@@ -12,9 +12,23 @@ const UserSchema = new Schema({
     role: {
         type: String,
         enum: ['admin', 'son', 'parent']
-    }
+    },
+    isVerified: {
+        type: Boolean,
+        default: false
+    },
+    verificationToken: String,
+    verificationTokenExpires: Date
 });
 
-UserSchema.plugin(passportLocalMongoose, { usernameField: 'email' });
+// Configure Passport to verify the account status during authentication
+UserSchema.plugin(passportLocalMongoose, { 
+    usernameField: 'email',
+    findByUsername: function (model, query) {
+        // Enforce email verification check on authentication queries
+        query.isVerified = true;
+        return model.findOne(query);
+    }
+});
 
 module.exports = mongoose.model('User', UserSchema);
