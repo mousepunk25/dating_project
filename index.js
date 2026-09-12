@@ -119,3 +119,5 @@ const port = process.env.PORT || 5173;
 app.listen(port, () => {
     console.log(`Serving on port ${port}`);
 })
+
+module.exports = app;
