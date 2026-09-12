@@ -13,7 +13,6 @@ const SonProfileSchema = new Schema({
         type: Schema.Types.ObjectId,
         ref: 'User'
     },
-    // Requirement 1: Max 100 characters and no numbers
     fullName: {
         type: String,
         maxlength: [100, 'Full name cannot exceed 100 characters'],
@@ -25,7 +24,6 @@ const SonProfileSchema = new Schema({
             message: 'Full name cannot contain numbers'
         }
     },
-    // Requirement 2: Must be at least 18 years old
     dateOfBirth: {
         type: Date,
         validate: {
@@ -39,38 +37,32 @@ const SonProfileSchema = new Schema({
         }
     },
     address: AddressSchema,
-    // Requirement 3: Max 1000 characters
     aboutYou: {
         type: String,
         maxlength: [1000, 'About section cannot exceed 1000 characters']
     },
     image: ImageSchema,
-    dateWhenImageLastUpdated: Date, // Tracked timestamp for monthly image changes
+    dateWhenImageLastUpdated: Date,
     job: {
-        // Requirement 4: Max 200 characters
         position: {
             type: String,
             maxlength: [200, 'Job position cannot exceed 200 characters']
         },
         location: AddressSchema,
-        // Requirement 5: Max 200 characters
         companyName: {
             type: String,
             maxlength: [200, 'Company name cannot exceed 200 characters']
         }
     },
     education: {
-        // Requirement 6: Max 200 characters
         schoolName: {
             type: String,
             maxlength: [200, 'School name cannot exceed 200 characters']
         },
-        // Requirement 7: Max 200 characters
         educationLevel: {
             type: String,
             maxlength: [200, 'Education level cannot exceed 200 characters']
         },
-        // Requirement 8: Max 200 characters
         field: {
             type: String,
             maxlength: [200, 'Field of study cannot exceed 200 characters']
@@ -79,7 +71,6 @@ const SonProfileSchema = new Schema({
     socialMedia: [SocialMediaSchema],
     parentsFriends: {
         dateWhenLastParentAdded: Date,
-        // Requirement 9: Max 5 objects in parentsFriendsArray
         parentsFriendsArray: {
             type: [
                 {
@@ -142,12 +133,30 @@ SonProfileSchema.pre('save', async function () {
         this.dateWhenImageLastUpdated = new Date(now);
     }
 
-    // 2. Enforce 22-hour combined cooldown for adding a parent or sending a request
+    // 2. 22-hour cooldown logic for adding friends / requests only
     const TWENTY_TWO_HOURS_MS = 22 * 60 * 60 * 1000;
+
     const isFriendsModified = this.isModified('parentsFriends.parentsFriendsArray');
     const isRequestsModified = this.isModified('parentsWithRequestSent.parentsWithRequestSentArray');
 
-    if (isFriendsModified || isRequestsModified) {
+    if (!isFriendsModified && !isRequestsModified) {
+        return;
+    }
+
+    const friendsAtom = this.parentsFriends?.parentsFriendsArray?.$atomics();
+    const requestsAtom = this.parentsWithRequestSent?.parentsWithRequestSentArray?.$atomics();
+
+    const isFriendAdded = isFriendsModified && (
+        Boolean(friendsAtom?.$push || friendsAtom?.$addToSet) ||
+        (!friendsAtom && this.parentsFriends?.parentsFriendsArray?.length > (this.$__.priorDoc?.parentsFriends?.parentsFriendsArray?.length || 0))
+    );
+
+    const isRequestAdded = isRequestsModified && (
+        Boolean(requestsAtom?.$push || requestsAtom?.$addToSet) ||
+        (!requestsAtom && this.parentsWithRequestSent?.parentsWithRequestSentArray?.length > (this.$__.priorDoc?.parentsWithRequestSent?.parentsWithRequestSentArray?.length || 0))
+    );
+
+    if (isFriendAdded || isRequestAdded) {
         const lastParentAdded = this.parentsFriends?.dateWhenLastParentAdded
             ? new Date(this.parentsFriends.dateWhenLastParentAdded).getTime()
             : 0;
@@ -163,11 +172,11 @@ SonProfileSchema.pre('save', async function () {
             throw new Error(`You can only send a request or add a friend once every 22 hours. Please wait ${remainingHours} more hour(s).`);
         }
 
-        if (isFriendsModified) {
+        if (isFriendAdded) {
             if (!this.parentsFriends) this.parentsFriends = {};
             this.parentsFriends.dateWhenLastParentAdded = new Date(now);
         }
-        if (isRequestsModified) {
+        if (isRequestAdded) {
             if (!this.parentsWithRequestSent) this.parentsWithRequestSent = {};
             this.parentsWithRequestSent.dateWhenLastRequestWasSent = new Date(now);
         }

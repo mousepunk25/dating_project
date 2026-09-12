@@ -10,7 +10,7 @@ const ParentSchema = new Schema({
     fullName: { 
         type: String, 
         default: "",
-        maxlength: [100, 'Full name cannot exceed 100 characters'] // Requirement 1
+        maxlength: [100, 'Full name cannot exceed 100 characters']
     },
     job: { type: String, default: "" },
     address: { type: AddressSchema, default: {} },
@@ -25,7 +25,7 @@ const ParentSchema = new Schema({
                     ref: 'SonProfile'
                 }
             ],
-            validate: { // Requirement 2
+            validate: {
                 validator: function (val) {
                     return val.length <= 5;
                 },
@@ -62,17 +62,34 @@ const ParentSchema = new Schema({
     }
 });
 
-// Requirement 3: Enforce 22-hour combined limit on adding friends or sending requests
 ParentSchema.pre('save', async function () {
     const TWENTY_TWO_HOURS_MS = 22 * 60 * 60 * 1000;
     const now = Date.now();
 
-    // Check modification states
     const isFriendsModified = this.isModified('sonsFriends.sonsFriendsArray');
     const isRequestsModified = this.isModified('sonsWithRequestSent.sonsWithRequestSentArray');
 
-    if (isFriendsModified || isRequestsModified) {
-        // Read existing timestamps BEFORE mutating them
+    if (!isFriendsModified && !isRequestsModified) {
+        return;
+    }
+
+    // Safely retrieve original array states using Mongoose's internal _atomics or $__ tracking
+    const friendsAtom = this.sonsFriends?.sonsFriendsArray?.$atomics();
+    const requestsAtom = this.sonsWithRequestSent?.sonsWithRequestSentArray?.$atomics();
+
+    // Check if an ADD operation ($push, $addToSet) took place, or if length increased on a plain array replacement
+    const isFriendAdded = isFriendsModified && (
+        Boolean(friendsAtom?.$push || friendsAtom?.$addToSet) ||
+        (!friendsAtom && this.sonsFriends?.sonsFriendsArray?.length > (this.$__.priorDoc?.sonsFriends?.sonsFriendsArray?.length || 0))
+    );
+
+    const isRequestAdded = isRequestsModified && (
+        Boolean(requestsAtom?.$push || requestsAtom?.$addToSet) ||
+        (!requestsAtom && this.sonsWithRequestSent?.sonsWithRequestSentArray?.length > (this.$__.priorDoc?.sonsWithRequestSent?.sonsWithRequestSentArray?.length || 0))
+    );
+
+    // Only apply rate-limiting when adding an item
+    if (isFriendAdded || isRequestAdded) {
         const lastFriendAdded = this.sonsFriends?.dateWhenLastSonAdded 
             ? new Date(this.sonsFriends.dateWhenLastSonAdded).getTime() 
             : 0;
@@ -83,18 +100,16 @@ ParentSchema.pre('save', async function () {
 
         const latestActionTime = Math.max(lastFriendAdded, lastRequestSent);
 
-        // Verify rate limit (22 hours)
         if (latestActionTime > 0 && (now - latestActionTime) < TWENTY_TWO_HOURS_MS) {
             const remainingHours = ((TWENTY_TWO_HOURS_MS - (now - latestActionTime)) / (1000 * 60 * 60)).toFixed(1);
             throw new Error(`You can only send a request or add a friend once every 22 hours. Please wait ${remainingHours} more hour(s).`);
         }
 
-        // Apply new timestamps for tracking
-        if (isFriendsModified) {
+        if (isFriendAdded) {
             if (!this.sonsFriends) this.sonsFriends = {};
             this.sonsFriends.dateWhenLastSonAdded = new Date(now);
         }
-        if (isRequestsModified) {
+        if (isRequestAdded) {
             if (!this.sonsWithRequestSent) this.sonsWithRequestSent = {};
             this.sonsWithRequestSent.dateWhenLastRequestWasSent = new Date(now);
         }

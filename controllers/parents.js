@@ -58,15 +58,6 @@ module.exports.showParent = async (req, res, next) => {
     }
 }
 
-module.exports.deleteParent = async (req, res, next) => {
-    try {
-        res.json({ "message": "This is the route for deleting parent" });
-    } catch (e) {
-        console.log(e);
-        return next(err);
-    }
-}
-
 module.exports.updateParent = async (req, res, next) => {
     const { id } = req.params;
     try {
@@ -108,10 +99,10 @@ module.exports.sonsWithRequestSentRegister = async (req, res, next) => {
             // 1. Update Parent and Son profile relationships
             parentProfile.sonsFriends.sonsFriendsArray.push(sonid);
             parentProfile.sonsWhoWantToBeAdded = parentProfile.sonsWhoWantToBeAdded.filter(s => !s.equals(sonid));
-            
+
             let sonProfile = await SonProfile.findById(sonid);
             sonProfile.parentsFriends.parentsFriendsArray.push(id);
-            sonProfile.parentsWithRequestSent.parentsWithRequestSentArray = 
+            sonProfile.parentsWithRequestSent.parentsWithRequestSentArray =
                 sonProfile.parentsWithRequestSent.parentsWithRequestSentArray.filter(p => !p.equals(id));
 
             // 2. Find or create a new Conversation
@@ -132,7 +123,7 @@ module.exports.sonsWithRequestSentRegister = async (req, res, next) => {
             await parentProfile.save();
             await sonProfile.save();
 
-            return res.json({ 
+            return res.json({
                 "message": "This man was on your 'Want To Be Added' list.",
                 "conversationId": conversation._id
             });
@@ -157,14 +148,32 @@ module.exports.sonsWithRequestSentRegister = async (req, res, next) => {
 };
 
 module.exports.sonsWithRequestSentDelete = async (req, res, next) => {
-    const { id, sonid } = req.params;
+    const { id, sonid } = req.params; // id = ParentProfile ID, sonid = SonProfile ID
     try {
-        res.json({ "message": "This is the route for deleting the son from the sonsWithRequestSent list" });
+        let parentProfile = await ParentProfile.findById(id);
+        let sonProfile = await SonProfile.findById(sonid);
+
+        if (!parentProfile || !sonProfile) {
+            return res.status(404).json({ "message": "Parent or Son profile not found" });
+        }
+
+        // Remove Son from Parent's sonsWithRequestSent array
+        parentProfile.sonsWithRequestSent.sonsWithRequestSentArray =
+            parentProfile.sonsWithRequestSent.sonsWithRequestSentArray.filter(s => !s.equals(sonid));
+
+        // Remove Parent from Son's parentsWhoWantToBeAdded array
+        sonProfile.parentsWhoWantToBeAdded =
+            sonProfile.parentsWhoWantToBeAdded.filter(p => !p.equals(id));
+
+        await parentProfile.save();
+        await sonProfile.save();
+
+        return res.json({ "message": "Friend request canceled successfully." });
     } catch (e) {
         console.log(e);
-        return next(err);
+        return res.status(500).json({ "message": "Something went wrong while canceling the request." });
     }
-}
+};
 
 module.exports.sonsWhoWantToBeAddedShow = async (req, res, next) => {
     try {
@@ -190,10 +199,10 @@ module.exports.sonsWhoWantToBeAddedAccept = async (req, res, next) => {
             // 1. Update Parent and Son profiles
             parentProfile.sonsFriends.sonsFriendsArray.push(sonid);
             parentProfile.sonsWhoWantToBeAdded = parentProfile.sonsWhoWantToBeAdded.filter(s => !s.equals(sonid));
-            
+
             let sonProfile = await SonProfile.findById(sonid);
             sonProfile.parentsFriends.parentsFriendsArray.push(id);
-            sonProfile.parentsWithRequestSent.parentsWithRequestSentArray = 
+            sonProfile.parentsWithRequestSent.parentsWithRequestSentArray =
                 sonProfile.parentsWithRequestSent.parentsWithRequestSentArray.filter(p => !p.equals(id));
 
             // 2. Find or create Conversation using participantParent and participantSon
@@ -213,9 +222,9 @@ module.exports.sonsWhoWantToBeAddedAccept = async (req, res, next) => {
             await parentProfile.save();
             await sonProfile.save();
 
-            return res.json({ 
+            return res.json({
                 "message": "This son was added to your Friends List",
-                "conversationId": conversation._id 
+                "conversationId": conversation._id
             });
         } else {
             return res.json({ "message": "This man is not on your 'Want to be added' list" });
@@ -227,14 +236,32 @@ module.exports.sonsWhoWantToBeAddedAccept = async (req, res, next) => {
 };
 
 module.exports.sonsWhoWantToBeAddedDelete = async (req, res, next) => {
-    const { id, sonid } = req.params;
+    const { id, sonid } = req.params; // id = ParentProfile ID, sonid = SonProfile ID
     try {
-        res.json({ "message": "This is the route for deleting the son from the sonsWhoWantToBeAdded list" });
+        let parentProfile = await ParentProfile.findById(id);
+        let sonProfile = await SonProfile.findById(sonid);
+
+        if (!parentProfile || !sonProfile) {
+            return res.status(404).json({ "message": "Parent or Son profile not found" });
+        }
+
+        // Remove Son from Parent's sonsWhoWantToBeAdded array
+        parentProfile.sonsWhoWantToBeAdded =
+            parentProfile.sonsWhoWantToBeAdded.filter(s => !s.equals(sonid));
+
+        // Remove Parent from Son's parentsWithRequestSent array
+        sonProfile.parentsWithRequestSent.parentsWithRequestSentArray =
+            sonProfile.parentsWithRequestSent.parentsWithRequestSentArray.filter(p => !p.equals(id));
+
+        await parentProfile.save();
+        await sonProfile.save();
+
+        return res.json({ "message": "Request rejected successfully." });
     } catch (e) {
         console.log(e);
-        return next(err);
+        return res.status(500).json({ "message": "Something went wrong while rejecting the request." });
     }
-}
+};
 
 module.exports.sonsFriendsShow = async (req, res, next) => {
     try {
@@ -251,14 +278,38 @@ module.exports.sonsFriendsShow = async (req, res, next) => {
 }
 
 module.exports.sonsFriendsDelete = async (req, res, next) => {
-    const { id, sonid } = req.params;
+    const { id, sonid } = req.params; // id = ParentProfile ID, sonid = SonProfile ID
     try {
-        res.json({ "message": "This is the route for deleting the son from the sonsFreinds list" });
+        let parentProfile = await ParentProfile.findById(id);
+        let sonProfile = await SonProfile.findById(sonid);
+
+        if (!parentProfile || !sonProfile) {
+            return res.status(404).json({ "message": "Parent or Son profile not found" });
+        }
+
+        // Remove Son from Parent's friends list
+        parentProfile.sonsFriends.sonsFriendsArray =
+            parentProfile.sonsFriends.sonsFriendsArray.filter(s => !s.equals(sonid));
+
+        // Remove Parent from Son's friends list
+        sonProfile.parentsFriends.parentsFriendsArray =
+            sonProfile.parentsFriends.parentsFriendsArray.filter(p => !p.equals(id));
+
+        // Clean up active conversation between them
+        await Conversation.findOneAndDelete({
+            participantParent: id,
+            participantSon: sonid
+        });
+
+        await parentProfile.save();
+        await sonProfile.save();
+
+        return res.json({ "message": "Friend removed successfully." });
     } catch (e) {
         console.log(e);
-        return next(err);
+        return res.status(500).json({ "message": "Something went wrong while removing friend." });
     }
-}
+};
 
 module.exports.sonsSavedShow = async (req, res, next) => {
     try {
@@ -299,11 +350,22 @@ module.exports.sonsSavedRegister = async (req, res, next) => {
 }
 
 module.exports.sonsSavedDelete = async (req, res, next) => {
-    const { id, sonid } = req.params;
+    const { id, sonid } = req.params; // id = ParentProfile ID, sonid = SonProfile ID
     try {
-        res.json({ "message": "This is the route for deleting the son from the sonsSaved list" });
+        let parentProfile = await ParentProfile.findById(id);
+
+        if (!parentProfile) {
+            return res.status(404).json({ "message": "Parent profile not found" });
+        }
+
+        // Remove Son from Parent's sonsSaved array
+        parentProfile.sonsSaved = parentProfile.sonsSaved.filter(s => !s.equals(sonid));
+
+        await parentProfile.save();
+
+        return res.json({ "message": "Son removed from saved list successfully." });
     } catch (e) {
         console.log(e);
-        return next(err);
+        return res.status(500).json({ "message": "Something went wrong while removing from saved list." });
     }
-}
+};

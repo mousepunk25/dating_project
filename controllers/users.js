@@ -11,6 +11,13 @@ const frontendURL = process.env.ENVIRONMENT_VERSION === 'dev'
     ? process.env.DEV_FRONTEND_URL
     : process.env.PROD_FRONTEND_URL;
 
+// Configure Cloudinary once outside the function or at application startup
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
 module.exports.renderLogin = (req, res) => {
     res.sendFile(path.join(__dirname, '../views/login.html'));
 }
@@ -65,29 +72,107 @@ module.exports.logout = (req, res, next) => {
     });
 }
 
-module.exports.deleteUser = async (req, res) => {
-    const foundSonProfiles = await SonProfile.find().populate({
-        path: 'owner',
-        select: '_id'
-    }).exec();
-    const foundSonProfile = foundSonProfiles.find(fSP => fSP.owner._id.equals(req.user._id));
-    if (foundSonProfile) {
-        try {
-            await SonProfile.findByIdAndDelete(foundSonProfile._id);
-            await User.findByIdAndDelete(req.params.id);
-            return res.send('User deleted');
-        } catch (e) {
-            return res.send('There is some problem on our side');
-        }
-    }
-}
+module.exports.deleteUser = async (req, res, next) => {
+    try {
+        const userId = req.user?._id || req.params.id;
 
-// Configure Cloudinary once outside the function or at application startup
-cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET
-});
+        if (!userId) {
+            return res.status(400).json({ message: "User ID is required." });
+        }
+
+        // 1. Check if user is deleting their own account or has authority
+        if (req.user && req.user._id.toString() !== userId.toString()) {
+            return res.status(403).json({ message: "Unauthorized to delete this account." });
+        }
+
+        // 2. Fetch associated profiles
+        const sonProfile = await SonProfile.findOne({ owner: userId });
+        const parentProfile = await ParentProfile.findOne({ owner: userId });
+
+        if (!sonProfile && !parentProfile) {
+            // If profile does not exist, just delete the base User document
+            await User.findByIdAndDelete(userId);
+            req.logout?.(() => { });
+            return res.json({ message: "User account deleted successfully." });
+        }
+
+        // -------------------------------------------------------------
+        // CASE A: User is a Son
+        // -------------------------------------------------------------
+        if (sonProfile) {
+            const sonId = sonProfile._id;
+
+            // Remove Son from all Parents' lists
+            await ParentProfile.updateMany(
+                {},
+                {
+                    $pull: {
+                        "sonsFriends.sonsFriendsArray": { _id: sonId },
+                        "sonsWithRequestSent.sonsWithRequestSentArray": { _id: sonId },
+                        sonsWhoWantToBeAdded: sonId,
+                        sonsSaved: sonId
+                    }
+                }
+            );
+
+            // Delete all conversations involving this Son
+            await Conversation.deleteMany({ participantSon: sonId });
+
+            // Delete image from Cloudinary if stored
+            if (sonProfile.image && sonProfile.image.filename) {
+                try {
+                    await cloudinary.uploader.destroy(sonProfile.image.filename);
+                } catch (imgErr) {
+                    console.error("Cloudinary cleanup error (Son):", imgErr);
+                }
+            }
+
+            // Delete Son profile document
+            await SonProfile.findByIdAndDelete(sonId);
+        }
+
+        // -------------------------------------------------------------
+        // CASE B: User is a Parent
+        // -------------------------------------------------------------
+        if (parentProfile) {
+            const parentId = parentProfile._id;
+
+            // Remove Parent from all Sons' lists
+            await SonProfile.updateMany(
+                {},
+                {
+                    $pull: {
+                        "parentsFriends.parentsFriendsArray": { _id: parentId },
+                        "parentsWithRequestSent.parentsWithRequestSentArray": { _id: parentId },
+                        parentsWhoWantToBeAdded: parentId,
+                        parentsSaved: parentId
+                    }
+                }
+            );
+
+            // Delete all conversations involving this Parent
+            await Conversation.deleteMany({ participantParent: parentId });
+
+            // Delete Parent profile document
+            await ParentProfile.findByIdAndDelete(parentId);
+        }
+
+        // 3. Delete the primary User account
+        await User.findByIdAndDelete(userId);
+
+        // 4. Logout session and clear authentication context
+        req.logout((err) => {
+            if (err) {
+                console.error("Error logging out during deletion:", err);
+            }
+            return res.json({ message: "User and all related data deleted successfully." });
+        });
+
+    } catch (e) {
+        console.error("Error deleting user:", e);
+        return res.status(500).json({ message: "An error occurred while deleting the user account." });
+    }
+};
 
 module.exports.register = async (req, res, next) => {
     try {
@@ -258,8 +343,8 @@ module.exports.resendVerificationEmail = async (req, res) => {
         // Security practice: Return success even if email isn't found
         // to prevent bad actors from checking registered email addresses.
         if (!user || user.isVerified) {
-            return res.status(200).json({ 
-                message: 'If an unverified account exists with that email, a new link has been sent.' 
+            return res.status(200).json({
+                message: 'If an unverified account exists with that email, a new link has been sent.'
             });
         }
 
@@ -276,8 +361,8 @@ module.exports.resendVerificationEmail = async (req, res) => {
         // 3. Resend email via Resend helper
         await sendVerificationEmail(user.email, rawToken);
 
-        res.status(200).json({ 
-            message: 'If an unverified account exists with that email, a new link has been sent.' 
+        res.status(200).json({
+            message: 'If an unverified account exists with that email, a new link has been sent.'
         });
 
     } catch (e) {
