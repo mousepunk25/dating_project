@@ -30,16 +30,15 @@ db.once("open", () => {
 
 const app = express();
 
-const allowedOrigins = process.env.ENVIRONMENT_VERSION === 'dev' 
-    ? [process.env.DEV_FRONTEND_URL] 
+const allowedOrigins = process.env.ENVIRONMENT_VERSION === 'dev'
+    ? [process.env.DEV_FRONTEND_URL]
     : ['https://kawaliry.pl', 'https://www.kawaliry.pl'];
 const corsOptions = {
     origin: (origin, callback) => {
-        // Allow requests with no origin (e.g., mobile apps, Postman, server-to-server)
         if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
-            callback(new Error('Not allowed by CORS'));
+            callback(null, false); // Safely blocks CORS without crashing Node process
         }
     },
     credentials: true,
