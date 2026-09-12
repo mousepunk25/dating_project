@@ -14,7 +14,7 @@ const sendVerificationEmail = async (email, unhashedToken) => {
     // 1. Resend requires onboarding@resend.dev unless you have a verified domain
     const sender = isDev 
         ? 'Acme <onboarding@resend.dev>' 
-        : 'Acme <no-reply@yourdomain.com>';
+        : 'Acme <no-reply@kontakt.kawaliry.pl>';
 
     // 2. In dev mode, redirect all emails to your personal Resend account address
     const recipient = isDev 
