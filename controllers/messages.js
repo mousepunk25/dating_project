@@ -12,7 +12,7 @@ module.exports.sendMessage = async (req, res) => {
         if (!text || text.trim() === '') {
             return res.status(400).json({
                 success: false,
-                message: 'Message text cannot be empty.'
+                message: 'Wiadomość nie może być pusta.'
             });
         }
 
@@ -42,7 +42,7 @@ module.exports.sendMessage = async (req, res) => {
         if (!conversation) {
             return res.status(404).json({
                 success: false,
-                message: 'Conversation not found or access denied.'
+                message: 'Czat nie znaleziony lub dostęp zabroniony.'
             });
         }
 
@@ -68,7 +68,7 @@ module.exports.sendMessage = async (req, res) => {
         console.error('Error sending message:', error);
         return res.status(500).json({
             success: false,
-            message: 'Failed to send message.'
+            message: 'Nie udało się wysłać wiadomości.'
         });
     }
 };

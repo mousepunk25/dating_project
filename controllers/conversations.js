@@ -53,7 +53,7 @@ module.exports.getUserConversations = async (req, res) => {
         console.error('Error fetching conversations:', error);
         return res.status(500).json({ 
             success: false, 
-            message: 'Failed to retrieve conversations' 
+            message: 'Nie udało się otworzyć czatu' 
         });
     }
 };
@@ -73,7 +73,7 @@ module.exports.getSingleConversation = async (req, res) => {
         if (!parentId && !sonId) {
             return res.status(404).json({
                 success: false,
-                message: 'Profile not found.'
+                message: 'Profil nie znaleziony.'
             });
         }
 
@@ -97,7 +97,7 @@ module.exports.getSingleConversation = async (req, res) => {
         if (!conversation) {
             return res.status(404).json({
                 success: false,
-                message: 'Conversation not found or access denied.'
+                message: 'Czat nie znaleziony lub dostęp zabroniony.'
             });
         }
 
@@ -147,7 +147,7 @@ module.exports.getSingleConversation = async (req, res) => {
         console.error('Error fetching single conversation:', error);
         return res.status(500).json({
             success: false,
-            message: 'Failed to retrieve conversation details.'
+            message: 'Nie udało się pobrać czatu.'
         });
     }
 };
