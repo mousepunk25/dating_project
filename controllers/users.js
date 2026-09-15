@@ -4,8 +4,8 @@ const User = require('../models/user');
 const SonProfile = require('../models/sonProfile');
 const ParentProfile = require('../models/parentProfile');
 const cloudinary = require('cloudinary').v2;
-const sendVerificationEmail = require('../utils/sendVerificationEmail');
 const passport = require('passport');
+const sendEmail = require('../utils/sendEmail');
 
 const frontendURL = process.env.ENVIRONMENT_VERSION === 'dev'
     ? process.env.DEV_FRONTEND_URL
@@ -181,16 +181,20 @@ module.exports.register = async (req, res, next) => {
             password,
             role,
             fullNameParent,
-            jobParent,
             cityParent,
             fullNameSon,
             dateOfBirth,
             citySon,
             aboutYou,
-            jobSon,
+            job,
+            jobParent, // Fallback for backward compatibility
+            jobSon,    // Fallback for backward compatibility
             educationLevel,
             image: imageInput
         } = req.body;
+
+        // Resolve common job field
+        const userJob = job || (role === 'parent' ? jobParent : jobSon) || '';
 
         const rawToken = crypto.randomBytes(32).toString('hex');
         const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
@@ -211,7 +215,7 @@ module.exports.register = async (req, res, next) => {
             const parentProfile = new ParentProfile({
                 owner: registeredUser._id,
                 fullName: fullNameParent,
-                job: jobParent,
+                job: userJob,
                 address: { city: cityParent, country: '', longitude: '', latitude: '' },
                 sonAgeMin: 18,
                 sonAgeMax: 100
@@ -227,13 +231,19 @@ module.exports.register = async (req, res, next) => {
                 // Determine source to upload
                 const sourceToUpload = imageInput || placeholderPath;
 
-                // 1. Upload with Rekognition AI Moderation enabled
-                const uploadResult = await cloudinary.uploader.upload(sourceToUpload, {
-                    folder: 'profile_pictures',
-                    moderation: 'aws_rek' // Triggers Rekognition AI Moderation
-                });
+                // 1. Build dynamic upload configuration based on environment
+                const uploadOptions = {
+                    folder: 'profile_pictures'
+                };
 
-                // 2. Check Moderation Status
+                // Only enable AWS Rekognition moderation outside the dev environment
+                if (process.env.ENVIRONMENT_VERSION !== 'dev') {
+                    uploadOptions.moderation = 'aws_rek';
+                }
+
+                const uploadResult = await cloudinary.uploader.upload(sourceToUpload, uploadOptions);
+
+                // 2. Check Moderation Status (only executed if moderation was configured and triggered)
                 let isApproved = true;
                 if (uploadResult.moderation && uploadResult.moderation.length > 0) {
                     const moderationStatus = uploadResult.moderation[0].status;
@@ -284,7 +294,7 @@ module.exports.register = async (req, res, next) => {
                 dateOfBirth,
                 address: { city: citySon },
                 aboutYou,
-                job: { position: jobSon, companyName: '' },
+                job: { position: userJob, companyName: '' },
                 education: { educationLevel: educationLevel }
             });
 
@@ -292,7 +302,11 @@ module.exports.register = async (req, res, next) => {
             profileId = sonProfile._id;
         }
 
-        await sendVerificationEmail(registeredUser.email, rawToken);
+        await sendEmail({
+            to: user.email,
+            template: 'verification',
+            payload: { token: rawToken }
+        });
 
         res.redirect(`${frontendURL}/myprofile?status=verification-sent`);
 
@@ -359,7 +373,11 @@ module.exports.resendVerificationEmail = async (req, res) => {
         await user.save();
 
         // 3. Resend email via Resend helper
-        await sendVerificationEmail(user.email, rawToken);
+        await sendEmail({
+            to: user.email,
+            template: 'verification',
+            payload: { token: rawToken }
+        });
 
         res.status(200).json({
             message: 'If an unverified account exists with that email, a new link has been sent.'
@@ -368,5 +386,85 @@ module.exports.resendVerificationEmail = async (req, res) => {
     } catch (e) {
         console.error('Error in resendVerificationEmail:', e);
         res.status(500).json({ error: 'Something went wrong on our side. Please try again.' });
+    }
+};
+
+module.exports.requestPasswordReset = async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({ error: 'Email is required.' });
+        }
+
+        const user = await User.findOne({ email });
+
+        // Generic response prevents account enumeration attacks
+        if (!user) {
+            return res.status(200).json({
+                message: 'If an account exists with that email, a password reset link has been sent.'
+            });
+        }
+
+        // 1. Generate unhashed token for client and hashed token for DB storage
+        const rawToken = crypto.randomBytes(32).toString('hex');
+        const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+        const tokenExpires = Date.now() + 60 * 60 * 1000; // 1 Hour
+
+        // 2. Save token state to user document
+        user.resetPasswordToken = hashedToken;
+        user.resetPasswordExpires = tokenExpires;
+        await user.save();
+
+        // 3. Dispatch verification email containing the raw token link
+        // Note: Replace or update sendVerificationEmail helper if you have a distinct reset email template helper
+        await sendEmail({
+            to: user.email,
+            template: 'reset-password',
+            payload: { token: rawToken }
+        });
+
+        res.status(200).json({
+            message: 'If an account exists with that email, a password reset link has been sent.'
+        });
+
+    } catch (e) {
+        console.error('Error in requestPasswordReset:', e);
+        res.status(500).json({ error: 'An error occurred while requesting password reset.' });
+    }
+};
+
+module.exports.resetPassword = async (req, res) => {
+    try {
+        const { token, newPassword } = req.body;
+
+        if (!token || !newPassword) {
+            return res.status(400).json({ error: 'Token and new password are required.' });
+        }
+
+        const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+        const user = await User.findOne({
+            resetPasswordToken: hashedToken,
+            resetPasswordExpires: { $gt: Date.now() }
+        });
+
+        if (!user) {
+            return res.status(400).json({ error: 'Password reset token is invalid or has expired.' });
+        }
+
+        // Set password using passport-local-mongoose plugin interface
+        await user.setPassword(newPassword);
+
+        // Clear token fields
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpires = undefined;
+        await user.save();
+
+        res.status(200).json({ message: 'Password has been successfully updated.' });
+
+    } catch (e) {
+        console.error('Error in resetPassword:', e);
+        res.status(500).json({ error: 'An error occurred while resetting the password.' });
     }
 };

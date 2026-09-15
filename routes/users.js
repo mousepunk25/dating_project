@@ -1,23 +1,27 @@
 const express = require('express');
 const router = express.Router();
 const passport = require('passport');
-const {isLoggedIn} = require('../middleware');
+const { isLoggedIn } = require('../middleware');
 const users = require('../controllers/users');
 const User = require('../models/user');
 
 router.route('/login')
     .get(users.renderLogin)
-    .post(users.login)
+    .post(users.login);
 
 router.post('/register', users.register);
 
 router.get('/verify-email', users.verifyEmail);
 router.post('/resend-verification', users.resendVerificationEmail);
 
-router.get('/logout', users.logout)
+// Password Reset Routes
+router.post('/request-password-reset', users.requestPasswordReset);
+router.post('/reset-password', users.resetPassword);
+
+router.get('/logout', users.logout);
 
 router.route('/users/:id')
-    .delete(isLoggedIn, isOwner, users.deleteUser)
+    .delete(isLoggedIn, isOwner, users.deleteUser);
 
 module.exports = router;
 
@@ -26,12 +30,12 @@ async function isOwner(req, res, next) {
     try {
         const foundUser = await User.findById(req.params.id);
         isOwner = foundUser && foundUser._id.equals(req.user._id) ? true : false;
-        if(isOwner) {
+        if (isOwner) {
             next();
         } else {
-            return res.json({'error': 'You are not the owner of this profile'});
+            return res.json({ 'error': 'You are not the owner of this profile' });
         }
     } catch (e) {
-        return res.json({'error': "We can't find this profile"});
+        return res.json({ 'error': "We can't find this profile" });
     }
 }

@@ -21,8 +21,19 @@ const ParentSchema = new Schema({
         sonsFriendsArray: {
             type: [
                 {
-                    type: Schema.Types.ObjectId,
-                    ref: 'SonProfile'
+                    son: {
+                        type: Schema.Types.ObjectId,
+                        ref: 'SonProfile',
+                        required: true
+                    },
+                    seen: {
+                        type: Boolean,
+                        default: false
+                    },
+                    addedAt: {
+                        type: Date,
+                        default: Date.now
+                    }
                 }
             ],
             validate: {
@@ -45,8 +56,19 @@ const ParentSchema = new Schema({
     sonsWhoWantToBeAdded: {
         type: [
             {
-                type: Schema.Types.ObjectId,
-                ref: 'SonProfile'
+                son: {
+                    type: Schema.Types.ObjectId,
+                    ref: 'SonProfile',
+                    required: true
+                },
+                seen: {
+                    type: Boolean,
+                    default: false
+                },
+                requestedAt: {
+                    type: Date,
+                    default: Date.now
+                }
             }
         ], 
         default: []

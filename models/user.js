@@ -18,11 +18,13 @@ const UserSchema = new Schema({
         default: false
     },
     verificationToken: String,
-    verificationTokenExpires: Date
+    verificationTokenExpires: Date,
+    resetPasswordToken: String,
+    resetPasswordExpires: Date
 });
 
 // Configure Passport to verify the account status during authentication
-UserSchema.plugin(passportLocalMongoose, { 
+UserSchema.plugin(passportLocalMongoose, {
     usernameField: 'email',
     findByUsername: function (model, query) {
         // Enforce email verification check on authentication queries

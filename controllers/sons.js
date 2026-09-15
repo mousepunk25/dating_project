@@ -9,8 +9,8 @@ const ParentProfile = require('../models/parentProfile');
 const Conversation = require('../models/conversation');
 
 const isEqualId = (a, b) => {
-  const idA = (a?._id || a?.type || a)?.toString();
-  const idB = (b?._id || b?.type || b)?.toString();
+  const idA = (a?.parent?._id || a?.parent || a?._id || a)?.toString();
+  const idB = (b?.parent?._id || b?.parent || b?._id || b)?.toString();
   return idA === idB;
 };
 
@@ -198,7 +198,21 @@ module.exports.updateSon = async (req, res) => {
 
     const { fullName, aboutYou, dateOfBirth, address, job, education, socialMedia, image } = req.body;
 
+    // Check 30-day image constraint BEFORE uploading to Cloudinary
     if (image && typeof image === 'string' && image.startsWith('data:image')) {
+      const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+      const now = Date.now();
+      const lastImageUpdate = sonProfile.dateWhenImageLastUpdated
+        ? new Date(sonProfile.dateWhenImageLastUpdated).getTime()
+        : 0;
+
+      if (lastImageUpdate > 0 && (now - lastImageUpdate) < THIRTY_DAYS_MS) {
+        const daysRemaining = Math.ceil((THIRTY_DAYS_MS - (now - lastImageUpdate)) / (1000 * 60 * 60 * 24));
+        return res.status(400).json({
+          error: `Profile image can only be changed once a month. Please wait ${daysRemaining} more day(s).`
+        });
+      }
+
       if (sonProfile.image && sonProfile.image.filename) {
         await cloudinary.uploader.destroy(sonProfile.image.filename);
       }
@@ -221,7 +235,6 @@ module.exports.updateSon = async (req, res) => {
     if (education !== undefined) sonProfile.education = education;
     if (socialMedia !== undefined) sonProfile.socialMedia = socialMedia;
 
-    // Save manually to run pre-save hooks (like the 30-day image update rule)
     await sonProfile.save();
 
     return res.status(200).json({
@@ -236,16 +249,13 @@ module.exports.updateSon = async (req, res) => {
 // 4. Friend Requests Sent
 module.exports.parentsWithRequestSentShow = async (req, res) => {
   try {
-    const son = await SonProfile.findById(req.params.id).populate({
-      path: 'parentsWithRequestSent',
-      populate: { path: 'parentsWithRequestSentArray' }
-    });
+    const son = await SonProfile.findById(req.params.id).populate('parentsWithRequestSent.parentsWithRequestSentArray');
 
     if (!son) {
       return res.status(404).json({ error: 'Son profile not found' });
     }
 
-    return res.status(200).json(son.parentsWithRequestSent.parentsWithRequestSentArray || []);
+    return res.status(200).json(son.parentsWithRequestSent?.parentsWithRequestSentArray || []);
   } catch (e) {
     return res.status(500).json({ error: 'Failed to fetch sent requests.' });
   }
@@ -276,10 +286,10 @@ module.exports.parentsWithRequestSentRegister = async (req, res) => {
 
     // Mutual addition branch
     if (isParentWhoWantToBeAdded) {
-      sonProfile.parentsFriends.parentsFriendsArray.push(parentid);
+      sonProfile.parentsFriends.parentsFriendsArray.push({ parent: parentid });
       sonProfile.parentsWhoWantToBeAdded = sonProfile.parentsWhoWantToBeAdded.filter(s => !isEqualId(s, parentid));
 
-      parentProfile.sonsFriends.sonsFriendsArray.push(id);
+      parentProfile.sonsFriends.sonsFriendsArray.push({ son: id });
       parentProfile.sonsWithRequestSent.sonsWithRequestSentArray = 
         parentProfile.sonsWithRequestSent.sonsWithRequestSentArray.filter(s => !isEqualId(s, id));
 
@@ -300,7 +310,7 @@ module.exports.parentsWithRequestSentRegister = async (req, res) => {
 
     // Standard Request Path
     sonProfile.parentsWithRequestSent.parentsWithRequestSentArray.push(parentid);
-    parentProfile.sonsWhoWantToBeAdded.push(id);
+    parentProfile.sonsWhoWantToBeAdded.push({ son: id });
 
     await parentProfile.save();
     await sonProfile.save();
@@ -339,11 +349,23 @@ module.exports.parentsWithRequestSentDelete = async (req, res) => {
 // 5. Friend Requests Received
 module.exports.parentsWhoWantToBeAddedShow = async (req, res) => {
   try {
-    const son = await SonProfile.findById(req.params.id).populate('parentsWhoWantToBeAdded');
+    const son = await SonProfile.findById(req.params.id).populate('parentsWhoWantToBeAdded.parent');
     if (!son) {
       return res.status(404).json({ error: 'Son profile not found' });
     }
-    return res.status(200).json(son.parentsWhoWantToBeAdded || []);
+
+    const requestsList = son.parentsWhoWantToBeAdded || [];
+
+    // Mark unread incoming requests as seen
+    if (requestsList.some(item => !item.seen)) {
+      await SonProfile.updateOne(
+        { _id: req.params.id },
+        { $set: { "parentsWhoWantToBeAdded.$[].seen": true } }
+      );
+      requestsList.forEach(item => { item.seen = true; });
+    }
+
+    return res.status(200).json(requestsList);
   } catch (e) {
     return res.status(500).json({ error: 'Failed to fetch incoming requests.' });
   }
@@ -359,8 +381,8 @@ module.exports.parentsWhoWantToBeAddedAccept = async (req, res) => {
       return res.status(404).json({ error: 'Son or Parent profile not found.' });
     }
 
-    const isParentFriend = sonProfile.parentsFriends.parentsFriendsArray.some(pF => isEqualId(pF, parentid));
-    const isParentWhoWantToBeAdded = sonProfile.parentsWhoWantToBeAdded.some(pW => isEqualId(pW, parentid));
+    const isParentFriend = sonProfile.parentsFriends?.parentsFriendsArray?.some(pF => isEqualId(pF, parentid));
+    const isParentWhoWantToBeAdded = sonProfile.parentsWhoWantToBeAdded?.some(pW => isEqualId(pW, parentid));
 
     if (isParentFriend) {
       return res.status(409).json({ error: 'This parent is already on your friends list.' });
@@ -370,10 +392,10 @@ module.exports.parentsWhoWantToBeAddedAccept = async (req, res) => {
       return res.status(400).json({ error: 'This parent is not on your pending requests list.' });
     }
 
-    sonProfile.parentsFriends.parentsFriendsArray.push(parentid);
+    sonProfile.parentsFriends.parentsFriendsArray.push({ parent: parentid });
     sonProfile.parentsWhoWantToBeAdded = sonProfile.parentsWhoWantToBeAdded.filter(s => !isEqualId(s, parentid));
 
-    parentProfile.sonsFriends.sonsFriendsArray.push(id);
+    parentProfile.sonsFriends.sonsFriendsArray.push({ son: id });
     parentProfile.sonsWithRequestSent.sonsWithRequestSentArray = 
       parentProfile.sonsWithRequestSent.sonsWithRequestSentArray.filter(p => !isEqualId(p, id));
 
@@ -423,16 +445,24 @@ module.exports.parentsWhoWantToBeAddedDelete = async (req, res) => {
 // 6. Friends List
 module.exports.parentsFriendsShow = async (req, res) => {
   try {
-    const son = await SonProfile.findById(req.params.id).populate({
-      path: 'parentsFriends',
-      populate: { path: 'parentsFriendsArray' }
-    });
+    const son = await SonProfile.findById(req.params.id).populate('parentsFriends.parentsFriendsArray.parent');
 
     if (!son) {
       return res.status(404).json({ error: 'Son profile not found' });
     }
 
-    return res.status(200).json(son.parentsFriends.parentsFriendsArray || []);
+    const friendsList = son.parentsFriends?.parentsFriendsArray || [];
+
+    // Mark unseen added friends as seen
+    if (friendsList.some(item => !item.seen)) {
+      await SonProfile.updateOne(
+        { _id: req.params.id },
+        { $set: { "parentsFriends.parentsFriendsArray.$[].seen": true } }
+      );
+      friendsList.forEach(item => { item.seen = true; });
+    }
+
+    return res.status(200).json(friendsList);
   } catch (e) {
     return res.status(500).json({ error: 'Failed to fetch friends list.' });
   }

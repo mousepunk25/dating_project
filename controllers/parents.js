@@ -114,9 +114,9 @@ module.exports.sonsWithRequestSentRegister = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Parent or Son profile not found' });
         }
 
-        const isSonFriend = parentProfile.sonsFriends?.sonsFriendsArray?.some(sF => sF.equals(sonid));
+        const isSonFriend = parentProfile.sonsFriends?.sonsFriendsArray?.some(item => item.son.equals(sonid));
         const isSonWithRequestSent = parentProfile.sonsWithRequestSent?.sonsWithRequestSentArray?.some(sW => sW.equals(sonid));
-        const isSonWhoWantToBeAdded = parentProfile.sonsWhoWantToBeAdded?.some(sW => sW.equals(sonid));
+        const isSonWhoWantToBeAdded = parentProfile.sonsWhoWantToBeAdded?.some(item => item.son.equals(sonid));
 
         if (isSonFriend) {
             return res.status(400).json({ success: false, code: 'ALREADY_FRIENDS', message: "This person is already on your friends list." });
@@ -128,8 +128,8 @@ module.exports.sonsWithRequestSentRegister = async (req, res) => {
         
         // Auto-accept scenario: Candidate already requested this parent
         if (isSonWhoWantToBeAdded) {
-            parentProfile.sonsFriends.sonsFriendsArray.push(sonid);
-            parentProfile.sonsWhoWantToBeAdded = parentProfile.sonsWhoWantToBeAdded.filter(s => !s.equals(sonid));
+            parentProfile.sonsFriends.sonsFriendsArray.push({ son: sonid });
+            parentProfile.sonsWhoWantToBeAdded = parentProfile.sonsWhoWantToBeAdded.filter(item => !item.son.equals(sonid));
 
             sonProfile.parentsFriends.parentsFriendsArray.push(id);
             sonProfile.parentsWithRequestSent.parentsWithRequestSentArray =
@@ -155,7 +155,7 @@ module.exports.sonsWithRequestSentRegister = async (req, res) => {
 
         // Standard Request Sending Path
         parentProfile.sonsWithRequestSent.sonsWithRequestSentArray.push(sonid);
-        sonProfile.parentsWhoWantToBeAdded.push(id);
+        sonProfile.parentsWhoWantToBeAdded.push({ parent: id });
 
         // Mongoose pre('save') triggers rate limit validation here
         await parentProfile.save();
@@ -186,7 +186,7 @@ module.exports.sonsWithRequestSentDelete = async (req, res) => {
             parentProfile.sonsWithRequestSent.sonsWithRequestSentArray.filter(s => !s.equals(sonid));
 
         sonProfile.parentsWhoWantToBeAdded =
-            sonProfile.parentsWhoWantToBeAdded.filter(p => !p.equals(id));
+            sonProfile.parentsWhoWantToBeAdded.filter(item => !item.parent?.equals(id));
 
         await parentProfile.save();
         await sonProfile.save();
@@ -200,11 +200,31 @@ module.exports.sonsWithRequestSentDelete = async (req, res) => {
 
 module.exports.sonsWhoWantToBeAddedShow = async (req, res) => {
     try {
-        const parent = await ParentProfile.findById(req.params.id).populate('sonsWhoWantToBeAdded');
+        const parent = await ParentProfile.findById(req.params.id).populate({
+            path: 'sonsWhoWantToBeAdded.son'
+        });
+        
         if (!parent) {
             return res.status(404).json({ success: false, message: "Parent profile not found" });
         }
-        return res.json(parent.sonsWhoWantToBeAdded);
+
+        // Check if there are any unread requests
+        const hasUnseen = parent.sonsWhoWantToBeAdded?.some(item => !item.seen);
+
+        if (hasUnseen) {
+            // Mark all items as seen in the database without mutating the returned array shape
+            await ParentProfile.updateOne(
+                { _id: req.params.id },
+                { $set: { "sonsWhoWantToBeAdded.$[].seen": true } }
+            );
+
+            // Mutate in-memory array so the current response reflects `seen: true`
+            parent.sonsWhoWantToBeAdded.forEach(item => {
+                item.seen = true;
+            });
+        }
+
+        return res.json(parent.sonsWhoWantToBeAdded || []);
     } catch (e) {
         console.error(e);
         return res.status(500).json({ success: false, message: 'Something went wrong.' });
@@ -221,8 +241,8 @@ module.exports.sonsWhoWantToBeAddedAccept = async (req, res) => {
             return res.status(404).json({ success: false, message: "Parent or Son profile not found" });
         }
 
-        const isSonFriend = parentProfile.sonsFriends?.sonsFriendsArray?.some(sF => sF.equals(sonid));
-        const isSonWhoWantToBeAdded = parentProfile.sonsWhoWantToBeAdded?.some(sW => sW.equals(sonid));
+        const isSonFriend = parentProfile.sonsFriends?.sonsFriendsArray?.some(item => item.son.equals(sonid));
+        const isSonWhoWantToBeAdded = parentProfile.sonsWhoWantToBeAdded?.some(item => item.son.equals(sonid));
 
         if (isSonFriend) {
             return res.status(400).json({ success: false, message: "This person is already on your friends list." });
@@ -232,8 +252,8 @@ module.exports.sonsWhoWantToBeAddedAccept = async (req, res) => {
             return res.status(400).json({ success: false, message: "This person is not on your pending requests list." });
         }
 
-        parentProfile.sonsFriends.sonsFriendsArray.push(sonid);
-        parentProfile.sonsWhoWantToBeAdded = parentProfile.sonsWhoWantToBeAdded.filter(s => !s.equals(sonid));
+        parentProfile.sonsFriends.sonsFriendsArray.push({ son: sonid });
+        parentProfile.sonsWhoWantToBeAdded = parentProfile.sonsWhoWantToBeAdded.filter(item => !item.son.equals(sonid));
 
         sonProfile.parentsFriends.parentsFriendsArray.push(id);
         sonProfile.parentsWithRequestSent.parentsWithRequestSentArray =
@@ -270,7 +290,7 @@ module.exports.sonsWhoWantToBeAddedDelete = async (req, res) => {
         }
 
         parentProfile.sonsWhoWantToBeAdded =
-            parentProfile.sonsWhoWantToBeAdded.filter(s => !s.equals(sonid));
+            parentProfile.sonsWhoWantToBeAdded.filter(item => !item.son.equals(sonid));
 
         sonProfile.parentsWithRequestSent.parentsWithRequestSentArray =
             sonProfile.parentsWithRequestSent.parentsWithRequestSentArray.filter(p => !p.equals(id));
@@ -288,12 +308,30 @@ module.exports.sonsWhoWantToBeAddedDelete = async (req, res) => {
 module.exports.sonsFriendsShow = async (req, res) => {
     try {
         const parent = await ParentProfile.findById(req.params.id).populate({
-            path: 'sonsFriends.sonsFriendsArray'
+            path: 'sonsFriends.sonsFriendsArray.son'
         });
+
         if (!parent) {
             return res.status(404).json({ success: false, message: "Parent profile not found" });
         }
-        return res.json(parent.sonsFriends?.sonsFriendsArray || []);
+
+        const friendsList = parent.sonsFriends?.sonsFriendsArray || [];
+        const hasUnseen = friendsList.some(item => !item.seen);
+
+        if (hasUnseen) {
+            // Mark all friends as seen in the database
+            await ParentProfile.updateOne(
+                { _id: req.params.id },
+                { $set: { "sonsFriends.sonsFriendsArray.$[].seen": true } }
+            );
+
+            // Mutate in-memory array so the current response reflects `seen: true`
+            friendsList.forEach(item => {
+                item.seen = true;
+            });
+        }
+
+        return res.json(friendsList);
     } catch (e) {
         console.error(e);
         return res.status(500).json({ success: false, message: 'Something went wrong.' });
@@ -311,7 +349,7 @@ module.exports.sonsFriendsDelete = async (req, res) => {
         }
 
         parentProfile.sonsFriends.sonsFriendsArray =
-            parentProfile.sonsFriends.sonsFriendsArray.filter(s => !s.equals(sonid));
+            parentProfile.sonsFriends.sonsFriendsArray.filter(item => !item.son.equals(sonid));
 
         sonProfile.parentsFriends.parentsFriendsArray =
             sonProfile.parentsFriends.parentsFriendsArray.filter(p => !p.equals(id));
@@ -346,15 +384,14 @@ module.exports.sonsSavedShow = async (req, res) => {
 
 module.exports.sonsSavedRegister = async (req, res) => {
     const { id, sonid } = req.params;
-    console.log('here');
     try {
         let parentProfile = await ParentProfile.findById(id);
         if (!parentProfile) {
             return res.status(404).json({ success: false, message: "Parent profile not found" });
         }
 
-        const isSonFriend = parentProfile.sonsFriends?.sonsFriendsArray?.some(sF => sF.equals(sonid));
-        const isSonWhoWantToBeAdded = parentProfile.sonsWhoWantToBeAdded?.some(sW => sW.equals(sonid));
+        const isSonFriend = parentProfile.sonsFriends?.sonsFriendsArray?.some(item => item.son.equals(sonid));
+        const isSonWhoWantToBeAdded = parentProfile.sonsWhoWantToBeAdded?.some(item => item.son.equals(sonid));
         const isSonSaved = parentProfile.sonsSaved?.some(sS => sS.equals(sonid));
 
         if (isSonFriend) {
