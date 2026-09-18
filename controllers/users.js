@@ -6,6 +6,7 @@ const ParentProfile = require('../models/parentProfile');
 const cloudinary = require('cloudinary').v2;
 const passport = require('passport');
 const sendEmail = require('../utils/sendEmail');
+const {validateEmailLimits} = require('./authController');
 
 const frontendURL = process.env.ENVIRONMENT_VERSION === 'dev'
     ? process.env.DEV_FRONTEND_URL
@@ -27,7 +28,6 @@ module.exports.login = (req, res, next) => {
         if (err) return next(err);
 
         if (!user) {
-            // Check if the user exists but is unverified to give a helpful message
             User.findOne({ email: req.body.username }).then(foundUser => {
                 if (foundUser && !foundUser.isVerified) {
                     return res.redirect(`${frontendURL}/myprofile?error=email-not-verified`);
@@ -80,29 +80,22 @@ module.exports.deleteUser = async (req, res, next) => {
             return res.status(400).json({ message: "User ID is required." });
         }
 
-        // 1. Check if user is deleting their own account or has authority
         if (req.user && req.user._id.toString() !== userId.toString()) {
             return res.status(403).json({ message: "Unauthorized to delete this account." });
         }
 
-        // 2. Fetch associated profiles
         const sonProfile = await SonProfile.findOne({ owner: userId });
         const parentProfile = await ParentProfile.findOne({ owner: userId });
 
         if (!sonProfile && !parentProfile) {
-            // If profile does not exist, just delete the base User document
             await User.findByIdAndDelete(userId);
             req.logout?.(() => { });
             return res.json({ message: "User account deleted successfully." });
         }
 
-        // -------------------------------------------------------------
-        // CASE A: User is a Son
-        // -------------------------------------------------------------
         if (sonProfile) {
             const sonId = sonProfile._id;
 
-            // Remove Son from all Parents' lists
             await ParentProfile.updateMany(
                 {},
                 {
@@ -115,10 +108,8 @@ module.exports.deleteUser = async (req, res, next) => {
                 }
             );
 
-            // Delete all conversations involving this Son
             await Conversation.deleteMany({ participantSon: sonId });
 
-            // Delete image from Cloudinary if stored
             if (sonProfile.image && sonProfile.image.filename) {
                 try {
                     await cloudinary.uploader.destroy(sonProfile.image.filename);
@@ -127,17 +118,12 @@ module.exports.deleteUser = async (req, res, next) => {
                 }
             }
 
-            // Delete Son profile document
             await SonProfile.findByIdAndDelete(sonId);
         }
 
-        // -------------------------------------------------------------
-        // CASE B: User is a Parent
-        // -------------------------------------------------------------
         if (parentProfile) {
             const parentId = parentProfile._id;
 
-            // Remove Parent from all Sons' lists
             await SonProfile.updateMany(
                 {},
                 {
@@ -150,17 +136,13 @@ module.exports.deleteUser = async (req, res, next) => {
                 }
             );
 
-            // Delete all conversations involving this Parent
             await Conversation.deleteMany({ participantParent: parentId });
 
-            // Delete Parent profile document
             await ParentProfile.findByIdAndDelete(parentId);
         }
 
-        // 3. Delete the primary User account
         await User.findByIdAndDelete(userId);
 
-        // 4. Logout session and clear authentication context
         req.logout((err) => {
             if (err) {
                 console.error("Error logging out during deletion:", err);
@@ -187,13 +169,12 @@ module.exports.register = async (req, res, next) => {
             citySon,
             aboutYou,
             job,
-            jobParent, // Fallback for backward compatibility
-            jobSon,    // Fallback for backward compatibility
+            jobParent,
+            jobSon,
             educationLevel,
             image: imageInput
         } = req.body;
 
-        // Resolve common job field
         const userJob = job || (role === 'parent' ? jobParent : jobSon) || '';
 
         const rawToken = crypto.randomBytes(32).toString('hex');
@@ -205,7 +186,8 @@ module.exports.register = async (req, res, next) => {
             role,
             isVerified: false,
             verificationToken: hashedToken,
-            verificationTokenExpires: tokenExpires
+            verificationTokenExpires: tokenExpires,
+            emailSentHistory: [new Date()] // Initialize with first registration email timestamp
         });
 
         const registeredUser = await User.register(user, password);
@@ -228,22 +210,18 @@ module.exports.register = async (req, res, next) => {
             const placeholderPath = path.join(__dirname, '../public/image_placeholder.jpg');
 
             try {
-                // Determine source to upload
                 const sourceToUpload = imageInput || placeholderPath;
 
-                // 1. Build dynamic upload configuration based on environment
                 const uploadOptions = {
                     folder: 'profile_pictures'
                 };
 
-                // Only enable AWS Rekognition moderation outside the dev environment
                 if (process.env.ENVIRONMENT_VERSION !== 'dev') {
                     uploadOptions.moderation = 'aws_rek';
                 }
 
                 const uploadResult = await cloudinary.uploader.upload(sourceToUpload, uploadOptions);
 
-                // 2. Check Moderation Status (only executed if moderation was configured and triggered)
                 let isApproved = true;
                 if (uploadResult.moderation && uploadResult.moderation.length > 0) {
                     const moderationStatus = uploadResult.moderation[0].status;
@@ -258,7 +236,6 @@ module.exports.register = async (req, res, next) => {
                         filename: uploadResult.public_id
                     };
                 } else {
-                    // Image failed moderation: Remove flagged upload and upload placeholder
                     await cloudinary.uploader.destroy(uploadResult.public_id);
 
                     const fallbackUpload = await cloudinary.uploader.upload(placeholderPath, {
@@ -273,7 +250,6 @@ module.exports.register = async (req, res, next) => {
             } catch (e) {
                 console.error('Cloudinary upload or moderation failed:', e);
 
-                // Fallback to uploading placeholder if an error occurs during upload
                 try {
                     const fallbackUpload = await cloudinary.uploader.upload(placeholderPath, {
                         folder: 'profile_pictures'
@@ -323,7 +299,6 @@ module.exports.verifyEmail = async (req, res) => {
         return res.redirect(`${frontendURL}/myprofile?error=missing-token`);
     }
 
-    // Hash the token from query param to match what's in DB
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
 
     const user = await User.findOne({
@@ -335,7 +310,6 @@ module.exports.verifyEmail = async (req, res) => {
         return res.redirect(`${frontendURL}/myprofile?error=invalid-or-expired-token`);
     }
 
-    // Mark verified & wipe token fields
     user.isVerified = true;
     user.verificationToken = undefined;
     user.verificationTokenExpires = undefined;
@@ -354,25 +328,27 @@ module.exports.resendVerificationEmail = async (req, res) => {
 
         const user = await User.findOne({ email });
 
-        // Security practice: Return success even if email isn't found
-        // to prevent bad actors from checking registered email addresses.
         if (!user || user.isVerified) {
             return res.status(200).json({
                 message: 'If an unverified account exists with that email, a new link has been sent.'
             });
         }
 
-        // 1. Generate new token & expiration
+        // Validate rate limits
+        const rateCheck = validateEmailLimits(user);
+        if (!rateCheck.allowed) {
+            return res.status(429).json({ error: rateCheck.message });
+        }
+
         const rawToken = crypto.randomBytes(32).toString('hex');
         const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
-        const tokenExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 Hours
+        const tokenExpires = Date.now() + 24 * 60 * 60 * 1000;
 
-        // 2. Update user document
         user.verificationToken = hashedToken;
         user.verificationTokenExpires = tokenExpires;
+        user.emailSentHistory.push(new Date()); // Push new timestamp
         await user.save();
 
-        // 3. Resend email via Resend helper
         await sendEmail({
             to: user.email,
             template: 'verification',
@@ -399,25 +375,27 @@ module.exports.requestPasswordReset = async (req, res) => {
 
         const user = await User.findOne({ email });
 
-        // Generic response prevents account enumeration attacks
         if (!user) {
             return res.status(200).json({
                 message: 'If an account exists with that email, a password reset link has been sent.'
             });
         }
 
-        // 1. Generate unhashed token for client and hashed token for DB storage
+        // Validate rate limits
+        const rateCheck = validateEmailLimits(user);
+        if (!rateCheck.allowed) {
+            return res.status(429).json({ error: rateCheck.message });
+        }
+
         const rawToken = crypto.randomBytes(32).toString('hex');
         const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
-        const tokenExpires = Date.now() + 60 * 60 * 1000; // 1 Hour
+        const tokenExpires = Date.now() + 60 * 60 * 1000;
 
-        // 2. Save token state to user document
         user.resetPasswordToken = hashedToken;
         user.resetPasswordExpires = tokenExpires;
+        user.emailSentHistory.push(new Date()); // Push new timestamp
         await user.save();
 
-        // 3. Dispatch verification email containing the raw token link
-        // Note: Replace or update sendVerificationEmail helper if you have a distinct reset email template helper
         await sendEmail({
             to: user.email,
             template: 'reset-password',
@@ -453,10 +431,8 @@ module.exports.resetPassword = async (req, res) => {
             return res.status(400).json({ error: 'Password reset token is invalid or has expired.' });
         }
 
-        // Set password using passport-local-mongoose plugin interface
         await user.setPassword(newPassword);
 
-        // Clear token fields
         user.resetPasswordToken = undefined;
         user.resetPasswordExpires = undefined;
         await user.save();

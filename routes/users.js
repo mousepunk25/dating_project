@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const passport = require('passport');
-const { isLoggedIn } = require('../middleware');
+const { isLoggedIn, emailIpRateLimiter } = require('../middleware');
 const users = require('../controllers/users');
 const User = require('../models/user');
 
@@ -9,13 +8,16 @@ router.route('/login')
     .get(users.renderLogin)
     .post(users.login);
 
-router.post('/register', users.register);
+// Protect registration against mass account creation and initial email spam
+router.post('/register', emailIpRateLimiter, users.register);
 
 router.get('/verify-email', users.verifyEmail);
-router.post('/resend-verification', users.resendVerificationEmail);
 
-// Password Reset Routes
-router.post('/request-password-reset', users.requestPasswordReset);
+// Protect direct email-dispatch endpoints
+router.post('/resend-verification', emailIpRateLimiter, users.resendVerificationEmail);
+router.post('/request-password-reset', emailIpRateLimiter, users.requestPasswordReset);
+
+// Password Reset execution
 router.post('/reset-password', users.resetPassword);
 
 router.get('/logout', users.logout);

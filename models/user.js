@@ -20,14 +20,15 @@ const UserSchema = new Schema({
     verificationToken: String,
     verificationTokenExpires: Date,
     resetPasswordToken: String,
-    resetPasswordExpires: Date
+    resetPasswordExpires: Date,
+    // Tracks timestamps of sent emails to enforce 60s cooldown and 4 emails/hour limits
+    emailSentHistory: [Date]
 });
 
 // Configure Passport to verify the account status during authentication
 UserSchema.plugin(passportLocalMongoose, {
     usernameField: 'email',
     findByUsername: function (model, query) {
-        // Enforce email verification check on authentication queries
         query.isVerified = true;
         return model.findOne(query);
     }
