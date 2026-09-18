@@ -112,7 +112,7 @@ module.exports.index = async (req, res) => {
 
     res.status(200).json(sons);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to retrieve son profiles.' });
+    res.status(500).json({ error: 'Nie udało się pobrać listy zięciów.' });
   }
 };
 
@@ -121,7 +121,7 @@ module.exports.count = async (req, res) => {
     const sonNumber = await SonProfile.countDocuments({});
     res.status(200).json({ sonNumber });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to count son profiles.' });
+    res.status(500).json({ error: 'Nie udało się pobrać liczby zięciów.' });
   }
 };
 

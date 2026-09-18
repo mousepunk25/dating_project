@@ -24,7 +24,7 @@ module.exports.validateEmailLimits = (user) => {
             const timeRemainingSec = Math.ceil((EMAIL_COOLDOWN_MS - timePassed) / 1000);
             return {
                 allowed: false,
-                message: `Please wait ${timeRemainingSec} second(s) before requesting another email.`
+                message: `Proszę zaczekać ${timeRemainingSec} sekund przed ponownym wysłaniem maila.`
             };
         }
     }
@@ -35,7 +35,7 @@ module.exports.validateEmailLimits = (user) => {
         const minutesRemaining = Math.ceil((ONE_HOUR_MS - (now - oldestInWindow)) / (1000 * 60));
         return {
             allowed: false,
-            message: `Hourly email limit reached. Try again in ${minutesRemaining} minute(s).`
+            message: `Godzinowy limit osiągnięty. Spróbuj ponownie za ${minutesRemaining} minut.`
         };
     }
 

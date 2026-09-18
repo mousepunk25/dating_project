@@ -40,7 +40,7 @@ const ParentSchema = new Schema({
                 validator: function (val) {
                     return val.length <= 5;
                 },
-                message: 'sonsFriendsArray cannot contain more than 5 objects.'
+                message: 'Nie możesz mieć więcej niż 5 znajomych. Usuń któregoś, żeby dodać nowego.'
             }
         }
     },
@@ -124,7 +124,7 @@ ParentSchema.pre('save', async function () {
 
         if (latestActionTime > 0 && (now - latestActionTime) < TWENTY_TWO_HOURS_MS) {
             const remainingHours = ((TWENTY_TWO_HOURS_MS - (now - latestActionTime)) / (1000 * 60 * 60)).toFixed(1);
-            throw new Error(`You can only send a request or add a friend once every 22 hours. Please wait ${remainingHours} more hour(s).`);
+            throw new Error(`Możesz WYSŁAĆ lub PRZYJĄĆ zaprosznie raz na 22 godziny. Zaczekaj proszę pozostałe ${remainingHours} godziny.`);
         }
 
         if (isFriendAdded) {

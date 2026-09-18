@@ -147,12 +147,12 @@ module.exports.deleteUser = async (req, res, next) => {
             if (err) {
                 console.error("Error logging out during deletion:", err);
             }
-            return res.json({ message: "User and all related data deleted successfully." });
+            return res.json({ message: "Tówj profil został usunięty." });
         });
 
     } catch (e) {
         console.error("Error deleting user:", e);
-        return res.status(500).json({ message: "An error occurred while deleting the user account." });
+        return res.status(500).json({ message: "Pojawił się błąd w trakcie usuwania profilu użytkownika." });
     }
 };
 
@@ -330,7 +330,7 @@ module.exports.resendVerificationEmail = async (req, res) => {
 
         if (!user || user.isVerified) {
             return res.status(200).json({
-                message: 'If an unverified account exists with that email, a new link has been sent.'
+                message: 'Jeżeli istnieje takie niezweryfikowane konto, nowy email weryfikacyjny został wysłany.'
             });
         }
 
@@ -356,12 +356,12 @@ module.exports.resendVerificationEmail = async (req, res) => {
         });
 
         res.status(200).json({
-            message: 'If an unverified account exists with that email, a new link has been sent.'
+            message: 'Jeżeli istnieje takie niezweryfikowane konto, nowy email weryfikacyjny został wysłany.'
         });
 
     } catch (e) {
         console.error('Error in resendVerificationEmail:', e);
-        res.status(500).json({ error: 'Something went wrong on our side. Please try again.' });
+        res.status(500).json({ error: 'Coś poszło nie tak po naszej stronie. Spróbuj ponownie później.' });
     }
 };
 
@@ -370,14 +370,14 @@ module.exports.requestPasswordReset = async (req, res) => {
         const { email } = req.body;
 
         if (!email) {
-            return res.status(400).json({ error: 'Email is required.' });
+            return res.status(400).json({ error: 'Email jest wymagany.' });
         }
 
         const user = await User.findOne({ email });
 
         if (!user) {
             return res.status(200).json({
-                message: 'If an account exists with that email, a password reset link has been sent.'
+                message: 'Jeżeli istnieje takie konto, email z linkiem resetującym hasło został wysłany.'
             });
         }
 
@@ -403,12 +403,12 @@ module.exports.requestPasswordReset = async (req, res) => {
         });
 
         res.status(200).json({
-            message: 'If an account exists with that email, a password reset link has been sent.'
+            message: 'Jeżeli istnieje takie konto, email z linkiem resetującym hasło został wysłany.'
         });
 
     } catch (e) {
         console.error('Error in requestPasswordReset:', e);
-        res.status(500).json({ error: 'An error occurred while requesting password reset.' });
+        res.status(500).json({ error: 'Pojawił się błąd przy prośbie o reset hasła.' });
     }
 };
 
@@ -417,7 +417,7 @@ module.exports.resetPassword = async (req, res) => {
         const { token, newPassword } = req.body;
 
         if (!token || !newPassword) {
-            return res.status(400).json({ error: 'Token and new password are required.' });
+            return res.status(400).json({ error: 'Token i nowe hasło są wymagane.' });
         }
 
         const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
@@ -428,7 +428,7 @@ module.exports.resetPassword = async (req, res) => {
         });
 
         if (!user) {
-            return res.status(400).json({ error: 'Password reset token is invalid or has expired.' });
+            return res.status(400).json({ error: 'Token jest niewłaściwy albo się przedawnił.' });
         }
 
         await user.setPassword(newPassword);
@@ -437,10 +437,10 @@ module.exports.resetPassword = async (req, res) => {
         user.resetPasswordExpires = undefined;
         await user.save();
 
-        res.status(200).json({ message: 'Password has been successfully updated.' });
+        res.status(200).json({ message: 'Hasło zostało zmienione.' });
 
     } catch (e) {
         console.error('Error in resetPassword:', e);
-        res.status(500).json({ error: 'An error occurred while resetting the password.' });
+        res.status(500).json({ error: 'Pojawił się błąd w trakcie resetowania hasła.' });
     }
 };

@@ -15,7 +15,7 @@ const handleSaveError = (res, e) => {
     console.error(e);
     return res.status(500).json({
         success: false,
-        message: 'Something went wrong on the server.'
+        message: 'Coś nie zadziałało po stronie serwera.'
     });
 };
 
@@ -58,7 +58,7 @@ module.exports.index = async (req, res) => {
         }
         res.json(parents);
     } catch (err) {
-        res.status(500).json({ success: false, message: 'Server error fetching parents' });
+        res.status(500).json({ success: false, message: 'Coś nie zadziałało po stronie serwera.' });
     }
 };
 
@@ -66,7 +66,7 @@ module.exports.showParent = async (req, res, next) => {
     try {
         const parent = await ParentProfile.findById(req.params.id, 'fullName address job sonAgeMin sonAgeMax');
         if (!parent) {
-            return res.status(404).json({ success: false, message: 'Parent profile not found' });
+            return res.status(404).json({ success: false, message: 'Nie znaleziono profilu rodzica.' });
         }
         res.json(parent);
     } catch (e) {
@@ -80,9 +80,9 @@ module.exports.updateParent = async (req, res) => {
     try {
         const parentProfile = await ParentProfile.findByIdAndUpdate(id, { ...req.body }, { new: true, runValidators: true });
         if (!parentProfile) {
-            return res.status(404).json({ success: false, message: 'Parent profile not found' });
+            return res.status(404).json({ success: false, message: 'Nie znaleziono profilu rodzica.' });
         }
-        return res.json({ success: true, message: 'Your profile has been updated!' });
+        return res.json({ success: true, message: 'Twój profil został zaktualizowany!' });
     } catch (e) {
         return handleSaveError(res, e);
     }
@@ -94,13 +94,13 @@ module.exports.sonsWithRequestSentShow = async (req, res) => {
             path: 'sonsWithRequestSent.sonsWithRequestSentArray'
         });
         if (!parent) {
-            return res.status(404).json({ success: false, message: 'Parent profile not found' });
+            return res.status(404).json({ success: false, message: 'Nie znaleziono profilu rodzica.' });
         }
         const sonsList = parent.sonsWithRequestSent?.sonsWithRequestSentArray || [];
         return res.json(sonsList);
     } catch (e) {
         console.error(e);
-        return res.status(500).json({ success: false, message: 'Error retrieving sent requests.' });
+        return res.status(500).json({ success: false, message: 'Błąd podczas wysyłania zaproszenia.' });
     }
 };
 
@@ -111,7 +111,7 @@ module.exports.sonsWithRequestSentRegister = async (req, res) => {
         let sonProfile = await SonProfile.findById(sonid);
 
         if (!parentProfile || !sonProfile) {
-            return res.status(404).json({ success: false, message: 'Parent or Son profile not found' });
+            return res.status(404).json({ success: false, message: 'Profil rodzica lub profil zięcia nie znalezione.' });
         }
 
         const isSonFriend = parentProfile.sonsFriends?.sonsFriendsArray?.some(item => item.son.equals(sonid));
@@ -119,13 +119,13 @@ module.exports.sonsWithRequestSentRegister = async (req, res) => {
         const isSonWhoWantToBeAdded = parentProfile.sonsWhoWantToBeAdded?.some(item => item.son.equals(sonid));
 
         if (isSonFriend) {
-            return res.status(400).json({ success: false, code: 'ALREADY_FRIENDS', message: "This person is already on your friends list." });
-        } 
-        
+            return res.status(400).json({ success: false, code: 'ALREADY_FRIENDS', message: "Ta osoba jest już na Twojej liście znajomych." });
+        }
+
         if (isSonWithRequestSent) {
-            return res.status(400).json({ success: false, code: 'REQUEST_ALREADY_SENT', message: "You have already sent a request to this person." });
-        } 
-        
+            return res.status(400).json({ success: false, code: 'REQUEST_ALREADY_SENT', message: "Wysłałeś już wcześniej zaproszenie tej osobie." });
+        }
+
         // Auto-accept scenario: Candidate already requested this parent
         if (isSonWhoWantToBeAdded) {
             parentProfile.sonsFriends.sonsFriendsArray.push({ son: sonid });
@@ -148,10 +148,10 @@ module.exports.sonsWithRequestSentRegister = async (req, res) => {
             return res.json({
                 success: true,
                 code: 'MUTUAL_MATCH_ADDED',
-                message: "Mutual match! This person was on your request list and has been added to your friends.",
+                message: "Udało się! Ta osoba została dodana do listy znajomych. Możesz z nią teraz czatować.",
                 conversationId: conversation._id
             });
-        } 
+        }
 
         // Standard Request Sending Path
         parentProfile.sonsWithRequestSent.sonsWithRequestSentArray.push(sonid);
@@ -164,11 +164,25 @@ module.exports.sonsWithRequestSentRegister = async (req, res) => {
         return res.json({
             success: true,
             code: 'REQUEST_SENT',
-            message: "Request sent successfully."
+            message: "Zaproszenie wysłano pomyślnie."
         });
 
     } catch (e) {
-        return handleSaveError(res, e);
+        // Extract validation message if it's a Mongoose ValidationError
+        let errorMessage = e.message;
+
+        if (e.name === 'ValidationError') {
+            const firstErrorKey = Object.keys(e.errors)[0];
+            if (firstErrorKey) {
+                errorMessage = e.errors[firstErrorKey].message;
+            }
+        }
+
+        return res.status(400).json({
+            success: false,
+            code: 'DATABASE_ERROR',
+            message: errorMessage || 'Wystąpił błąd podczas zapisywania danych.'
+        });
     }
 };
 
@@ -179,7 +193,7 @@ module.exports.sonsWithRequestSentDelete = async (req, res) => {
         let sonProfile = await SonProfile.findById(sonid);
 
         if (!parentProfile || !sonProfile) {
-            return res.status(404).json({ success: false, message: "Parent or Son profile not found" });
+            return res.status(404).json({ success: false, message: "Profil rodzica lub zięcia nie znalezione." });
         }
 
         parentProfile.sonsWithRequestSent.sonsWithRequestSentArray =
@@ -191,10 +205,10 @@ module.exports.sonsWithRequestSentDelete = async (req, res) => {
         await parentProfile.save();
         await sonProfile.save();
 
-        return res.json({ success: true, message: "Friend request canceled successfully." });
+        return res.json({ success: true, message: "Anluowano zaproszenie." });
     } catch (e) {
         console.error(e);
-        return res.status(500).json({ success: false, message: "Something went wrong while canceling the request." });
+        return res.status(500).json({ success: false, message: "Coś poszło nie tak z anulowaniem zaproszenia." });
     }
 };
 
@@ -203,9 +217,9 @@ module.exports.sonsWhoWantToBeAddedShow = async (req, res) => {
         const parent = await ParentProfile.findById(req.params.id).populate({
             path: 'sonsWhoWantToBeAdded.son'
         });
-        
+
         if (!parent) {
-            return res.status(404).json({ success: false, message: "Parent profile not found" });
+            return res.status(404).json({ success: false, message: "Profil rodzica nie odnaleziony." });
         }
 
         // Check if there are any unread requests
@@ -227,7 +241,7 @@ module.exports.sonsWhoWantToBeAddedShow = async (req, res) => {
         return res.json(parent.sonsWhoWantToBeAdded || []);
     } catch (e) {
         console.error(e);
-        return res.status(500).json({ success: false, message: 'Something went wrong.' });
+        return res.status(500).json({ success: false, message: 'Coś poszło nie tak.' });
     }
 };
 
@@ -238,18 +252,18 @@ module.exports.sonsWhoWantToBeAddedAccept = async (req, res) => {
         let sonProfile = await SonProfile.findById(sonid);
 
         if (!parentProfile || !sonProfile) {
-            return res.status(404).json({ success: false, message: "Parent or Son profile not found" });
+            return res.status(404).json({ success: false, message: "Profil rodzica lub zięcia nie znaleziony." });
         }
 
         const isSonFriend = parentProfile.sonsFriends?.sonsFriendsArray?.some(item => item.son.equals(sonid));
         const isSonWhoWantToBeAdded = parentProfile.sonsWhoWantToBeAdded?.some(item => item.son.equals(sonid));
 
         if (isSonFriend) {
-            return res.status(400).json({ success: false, message: "This person is already on your friends list." });
-        } 
-        
+            return res.status(400).json({ success: false, message: "Ta osoba jest już na Twojej liście znajomych." });
+        }
+
         if (!isSonWhoWantToBeAdded) {
-            return res.status(400).json({ success: false, message: "This person is not on your pending requests list." });
+            return res.status(400).json({ success: false, message: "Ta osoba otrzymała już od Ciebie zaproszenie." });
         }
 
         parentProfile.sonsFriends.sonsFriendsArray.push({ son: sonid });
@@ -270,7 +284,7 @@ module.exports.sonsWhoWantToBeAddedAccept = async (req, res) => {
 
         return res.json({
             success: true,
-            message: "Request accepted and candidate added to Friends List.",
+            message: "Zaproszenie zaakceptowane i ta osoba została dodana do listy znajomych. Możesz z nią teraz czatować.",
             conversationId: conversation._id
         });
 
@@ -286,7 +300,7 @@ module.exports.sonsWhoWantToBeAddedDelete = async (req, res) => {
         let sonProfile = await SonProfile.findById(sonid);
 
         if (!parentProfile || !sonProfile) {
-            return res.status(404).json({ success: false, message: "Parent or Son profile not found" });
+            return res.status(404).json({ success: false, message: "Profil rodzica lub zięca nie znaleziony." });
         }
 
         parentProfile.sonsWhoWantToBeAdded =
@@ -298,10 +312,10 @@ module.exports.sonsWhoWantToBeAddedDelete = async (req, res) => {
         await parentProfile.save();
         await sonProfile.save();
 
-        return res.json({ success: true, message: "Request rejected successfully." });
+        return res.json({ success: true, message: "Zaproszenie zostało odrzucone." });
     } catch (e) {
         console.error(e);
-        return res.status(500).json({ success: false, message: "Something went wrong while rejecting the request." });
+        return res.status(500).json({ success: false, message: "Coś poszło nie tak przy odrzucaniu zaproszenia." });
     }
 };
 
@@ -312,7 +326,7 @@ module.exports.sonsFriendsShow = async (req, res) => {
         });
 
         if (!parent) {
-            return res.status(404).json({ success: false, message: "Parent profile not found" });
+            return res.status(404).json({ success: false, message: "Profil rodzica nie znaleziony." });
         }
 
         const friendsList = parent.sonsFriends?.sonsFriendsArray || [];
@@ -334,7 +348,7 @@ module.exports.sonsFriendsShow = async (req, res) => {
         return res.json(friendsList);
     } catch (e) {
         console.error(e);
-        return res.status(500).json({ success: false, message: 'Something went wrong.' });
+        return res.status(500).json({ success: false, message: 'Coś poszło nie tak.' });
     }
 };
 
@@ -345,7 +359,7 @@ module.exports.sonsFriendsDelete = async (req, res) => {
         let sonProfile = await SonProfile.findById(sonid);
 
         if (!parentProfile || !sonProfile) {
-            return res.status(404).json({ success: false, message: "Parent or Son profile not found" });
+            return res.status(404).json({ success: false, message: "Profil rodzica lub zięcia nie znaleziony." });
         }
 
         parentProfile.sonsFriends.sonsFriendsArray =
@@ -362,10 +376,10 @@ module.exports.sonsFriendsDelete = async (req, res) => {
         await parentProfile.save();
         await sonProfile.save();
 
-        return res.json({ success: true, message: "Friend removed successfully." });
+        return res.json({ success: true, message: "Znajomy został usunięty z listy." });
     } catch (e) {
         console.error(e);
-        return res.status(500).json({ success: false, message: "Something went wrong while removing friend." });
+        return res.status(500).json({ success: false, message: "Coś poszło nie tak przy usuwaniu znajomego z listy." });
     }
 };
 
@@ -373,12 +387,12 @@ module.exports.sonsSavedShow = async (req, res) => {
     try {
         const parent = await ParentProfile.findById(req.params.id).populate('sonsSaved');
         if (!parent) {
-            return res.status(404).json({ success: false, message: "Parent profile not found" });
+            return res.status(404).json({ success: false, message: "Profil rodzica nie znaleziony." });
         }
         return res.json(parent.sonsSaved || []);
     } catch (e) {
         console.error(e);
-        return res.status(500).json({ success: false, message: 'Something went wrong.' });
+        return res.status(500).json({ success: false, message: 'Coś poszło nie tak.' });
     }
 };
 
@@ -387,7 +401,7 @@ module.exports.sonsSavedRegister = async (req, res) => {
     try {
         let parentProfile = await ParentProfile.findById(id);
         if (!parentProfile) {
-            return res.status(404).json({ success: false, message: "Parent profile not found" });
+            return res.status(404).json({ success: false, message: "Profil rodzica nie znaleziony." });
         }
 
         const isSonFriend = parentProfile.sonsFriends?.sonsFriendsArray?.some(item => item.son.equals(sonid));
@@ -395,21 +409,21 @@ module.exports.sonsSavedRegister = async (req, res) => {
         const isSonSaved = parentProfile.sonsSaved?.some(sS => sS.equals(sonid));
 
         if (isSonFriend) {
-            return res.status(400).json({ success: false, message: "This person is already on your friends list." });
-        } 
-        
+            return res.status(400).json({ success: false, message: "Ta osoba jest już na Twojej liście znajomych." });
+        }
+
         if (isSonWhoWantToBeAdded) {
-            return res.status(400).json({ success: false, message: "This person is on your 'Want To Be Added' list." });
-        } 
-        
+            return res.status(400).json({ success: false, message: "Ta osoba jest na liście osób, które chcą zostać dodane do Twoich znajomych." });
+        }
+
         if (isSonSaved) {
-            return res.status(400).json({ success: false, message: "This person is already in your saved list." });
+            return res.status(400).json({ success: false, message: "Ta osoba jest już na Twojej liście zapisanych osób." });
         }
 
         parentProfile.sonsSaved.push(sonid);
         await parentProfile.save();
 
-        return res.json({ success: true, message: "Candidate added to your saved list." });
+        return res.json({ success: true, message: "Kandydat został zapisany i możesz go znaleźć na liście zapisanych kandydatów." });
 
     } catch (e) {
         return handleSaveError(res, e);
@@ -421,15 +435,15 @@ module.exports.sonsSavedDelete = async (req, res) => {
     try {
         let parentProfile = await ParentProfile.findById(id);
         if (!parentProfile) {
-            return res.status(404).json({ success: false, message: "Parent profile not found" });
+            return res.status(404).json({ success: false, message: "Profil rodzica nie znaleziony." });
         }
 
         parentProfile.sonsSaved = parentProfile.sonsSaved.filter(s => !s.equals(sonid));
         await parentProfile.save();
 
-        return res.json({ success: true, message: "Candidate removed from saved list successfully." });
+        return res.json({ success: true, message: "Kandydat został usunięty z listy zapisanych kandydatów." });
     } catch (e) {
         console.error(e);
-        return res.status(500).json({ success: false, message: "Something went wrong while removing from saved list." });
+        return res.status(500).json({ success: false, message: "Coś poszło nie tak przy usuwaniu kandydata z listy zapisanych kandydatów." });
     }
 };
