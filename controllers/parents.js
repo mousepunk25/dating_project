@@ -3,15 +3,48 @@ const ParentProfile = require('../models/parentProfile');
 const SonProfile = require('../models/sonProfile');
 const Conversation = require('../models/conversation');
 
-// Helper function to format Mongoose validation/pre-save errors
+const TWENTY_TWO_HOURS_MS = 22 * 60 * 60 * 1000;
+
+// Helper to check 22-hour rate limit on controller level
+const checkTwentyTwoHourLimit = (parentProfile) => {
+    const now = Date.now();
+
+    const lastSonAdded = parentProfile.sonsFriends?.dateWhenLastSonAdded
+        ? new Date(parentProfile.sonsFriends.dateWhenLastSonAdded).getTime()
+        : 0;
+
+    const lastRequestSent = parentProfile.sonsWithRequestSent?.dateWhenLastRequestWasSent
+        ? new Date(parentProfile.sonsWithRequestSent.dateWhenLastRequestWasSent).getTime()
+        : 0;
+
+    const latestActionTime = Math.max(lastSonAdded, lastRequestSent);
+
+    if (latestActionTime > 0 && (now - latestActionTime) < TWENTY_TWO_HOURS_MS) {
+        const remainingHours = ((TWENTY_TWO_HOURS_MS - (now - latestActionTime)) / (1000 * 60 * 60)).toFixed(1);
+        return `Możesz WYSŁAĆ lub PRZYJĄĆ zaproszenie raz na 22 godziny. Zaczekaj proszę pozostałe ${remainingHours} godz.`;
+    }
+
+    return null;
+};
+
+// Helper function to format Mongoose validation errors
 const handleSaveError = (res, e) => {
-    // Standard Mongoose ValidationError or custom pre-save Error
-    if (e.name === 'ValidationError' || e.message.includes('once every 22 hours')) {
+    let errorMessage = e.message;
+
+    if (e.name === 'ValidationError') {
+        const firstErrorKey = Object.keys(e.errors)[0];
+        if (firstErrorKey) {
+            errorMessage = e.errors[firstErrorKey].message;
+        }
+    }
+
+    if (e.name === 'ValidationError' || e.message?.includes('raz na 22 godziny')) {
         return res.status(400).json({
             success: false,
-            message: e.message
+            message: errorMessage
         });
     }
+
     console.error(e);
     return res.status(500).json({
         success: false,
@@ -19,7 +52,7 @@ const handleSaveError = (res, e) => {
     });
 };
 
-// 1. Validation rules
+// 1. Validation rules & Index
 module.exports.validateIndex = [
     query('sonAge')
         .optional()
@@ -44,14 +77,14 @@ module.exports.index = async (req, res) => {
                 {
                     "sonAgeMin": { $lte: sonAge },
                     "sonAgeMax": { $gte: sonAge },
-                    "address.city": { $regex: city, $options: 'i' }
+                    "address.city": { $regex: city,$options: 'i' }
                 },
                 'fullName address job'
             );
         } else {
             parents = await ParentProfile.find(
                 {
-                    "address.city": { $regex: city, $options: 'i' }
+                    "address.city": { $regex: city,$options: 'i' }
                 },
                 'fullName address job'
             );
@@ -100,7 +133,7 @@ module.exports.sonsWithRequestSentShow = async (req, res) => {
         return res.json(sonsList);
     } catch (e) {
         console.error(e);
-        return res.status(500).json({ success: false, message: 'Błąd podczas wysyłania zaproszenia.' });
+        return res.status(500).json({ success: false, message: 'Błąd podczas pobierania wysłanych zaproszeń.' });
     }
 };
 
@@ -111,7 +144,7 @@ module.exports.sonsWithRequestSentRegister = async (req, res) => {
         let sonProfile = await SonProfile.findById(sonid);
 
         if (!parentProfile || !sonProfile) {
-            return res.status(404).json({ success: false, message: 'Profil rodzica lub profil zięcia nie znalezione.' });
+            return res.status(404).json({ success: false, message: 'Profil rodzica lub zięcia nie znalezione.' });
         }
 
         const isSonFriend = parentProfile.sonsFriends?.sonsFriendsArray?.some(item => item.son.equals(sonid));
@@ -126,12 +159,24 @@ module.exports.sonsWithRequestSentRegister = async (req, res) => {
             return res.status(400).json({ success: false, code: 'REQUEST_ALREADY_SENT', message: "Wysłałeś już wcześniej zaproszenie tej osobie." });
         }
 
+        // Validate 22-hour cooldown before performing action
+        const rateLimitError = checkTwentyTwoHourLimit(parentProfile);
+        if (rateLimitError) {
+            return res.status(400).json({ success: false, message: rateLimitError });
+        }
+
+        const now = new Date();
+
         // Auto-accept scenario: Candidate already requested this parent
         if (isSonWhoWantToBeAdded) {
+            if (!parentProfile.sonsFriends) parentProfile.sonsFriends = {};
+            parentProfile.sonsFriends.dateWhenLastSonAdded = now;
             parentProfile.sonsFriends.sonsFriendsArray.push({ son: sonid });
             parentProfile.sonsWhoWantToBeAdded = parentProfile.sonsWhoWantToBeAdded.filter(item => !item.son.equals(sonid));
 
-            sonProfile.parentsFriends.parentsFriendsArray.push(id);
+            if (!sonProfile.parentsFriends) sonProfile.parentsFriends = {};
+            sonProfile.parentsFriends.dateWhenLastParentAdded = now;
+            sonProfile.parentsFriends.parentsFriendsArray.push({ parent: id });
             sonProfile.parentsWithRequestSent.parentsWithRequestSentArray =
                 sonProfile.parentsWithRequestSent.parentsWithRequestSentArray.filter(p => !p.equals(id));
 
@@ -141,7 +186,6 @@ module.exports.sonsWithRequestSentRegister = async (req, res) => {
                 await conversation.save();
             }
 
-            // Mongoose pre('save') triggers rate limit & max 5 array size check
             await parentProfile.save();
             await sonProfile.save();
 
@@ -154,10 +198,12 @@ module.exports.sonsWithRequestSentRegister = async (req, res) => {
         }
 
         // Standard Request Sending Path
+        if (!parentProfile.sonsWithRequestSent) parentProfile.sonsWithRequestSent = {};
+        parentProfile.sonsWithRequestSent.dateWhenLastRequestWasSent = now;
         parentProfile.sonsWithRequestSent.sonsWithRequestSentArray.push(sonid);
+
         sonProfile.parentsWhoWantToBeAdded.push({ parent: id });
 
-        // Mongoose pre('save') triggers rate limit validation here
         await parentProfile.save();
         await sonProfile.save();
 
@@ -168,21 +214,7 @@ module.exports.sonsWithRequestSentRegister = async (req, res) => {
         });
 
     } catch (e) {
-        // Extract validation message if it's a Mongoose ValidationError
-        let errorMessage = e.message;
-
-        if (e.name === 'ValidationError') {
-            const firstErrorKey = Object.keys(e.errors)[0];
-            if (firstErrorKey) {
-                errorMessage = e.errors[firstErrorKey].message;
-            }
-        }
-
-        return res.status(400).json({
-            success: false,
-            code: 'DATABASE_ERROR',
-            message: errorMessage || 'Wystąpił błąd podczas zapisywania danych.'
-        });
+        return handleSaveError(res, e);
     }
 };
 
@@ -205,10 +237,10 @@ module.exports.sonsWithRequestSentDelete = async (req, res) => {
         await parentProfile.save();
         await sonProfile.save();
 
-        return res.json({ success: true, message: "Anluowano zaproszenie." });
+        return res.json({ success: true, message: "Anulowano zaproszenie." });
     } catch (e) {
         console.error(e);
-        return res.status(500).json({ success: false, message: "Coś poszło nie tak z anulowaniem zaproszenia." });
+        return res.status(500).json({ success: false, message: "Coś poszło nie tak z anulowaniem zaproszenia." });
     }
 };
 
@@ -222,17 +254,14 @@ module.exports.sonsWhoWantToBeAddedShow = async (req, res) => {
             return res.status(404).json({ success: false, message: "Profil rodzica nie odnaleziony." });
         }
 
-        // Check if there are any unread requests
         const hasUnseen = parent.sonsWhoWantToBeAdded?.some(item => !item.seen);
 
         if (hasUnseen) {
-            // Mark all items as seen in the database without mutating the returned array shape
             await ParentProfile.updateOne(
                 { _id: req.params.id },
                 { $set: { "sonsWhoWantToBeAdded.$[].seen": true } }
             );
 
-            // Mutate in-memory array so the current response reflects `seen: true`
             parent.sonsWhoWantToBeAdded.forEach(item => {
                 item.seen = true;
             });
@@ -263,13 +292,25 @@ module.exports.sonsWhoWantToBeAddedAccept = async (req, res) => {
         }
 
         if (!isSonWhoWantToBeAdded) {
-            return res.status(400).json({ success: false, message: "Ta osoba otrzymała już od Ciebie zaproszenie." });
+            return res.status(400).json({ success: false, message: "Ta osoba nie znajduje się na Twojej liście oczekujących zaproszeń." });
         }
 
+        // Validate 22-hour cooldown before accepting request
+        const rateLimitError = checkTwentyTwoHourLimit(parentProfile);
+        if (rateLimitError) {
+            return res.status(400).json({ success: false, message: rateLimitError });
+        }
+
+        const now = new Date();
+
+        if (!parentProfile.sonsFriends) parentProfile.sonsFriends = {};
+        parentProfile.sonsFriends.dateWhenLastSonAdded = now;
         parentProfile.sonsFriends.sonsFriendsArray.push({ son: sonid });
         parentProfile.sonsWhoWantToBeAdded = parentProfile.sonsWhoWantToBeAdded.filter(item => !item.son.equals(sonid));
 
-        sonProfile.parentsFriends.parentsFriendsArray.push(id);
+        if (!sonProfile.parentsFriends) sonProfile.parentsFriends = {};
+        sonProfile.parentsFriends.dateWhenLastParentAdded = now;
+        sonProfile.parentsFriends.parentsFriendsArray.push({ parent: id });
         sonProfile.parentsWithRequestSent.parentsWithRequestSentArray =
             sonProfile.parentsWithRequestSent.parentsWithRequestSentArray.filter(p => !p.equals(id));
 
@@ -300,7 +341,7 @@ module.exports.sonsWhoWantToBeAddedDelete = async (req, res) => {
         let sonProfile = await SonProfile.findById(sonid);
 
         if (!parentProfile || !sonProfile) {
-            return res.status(404).json({ success: false, message: "Profil rodzica lub zięca nie znaleziony." });
+            return res.status(404).json({ success: false, message: "Profil rodzica lub zięcia nie znaleziony." });
         }
 
         parentProfile.sonsWhoWantToBeAdded =
@@ -333,13 +374,11 @@ module.exports.sonsFriendsShow = async (req, res) => {
         const hasUnseen = friendsList.some(item => !item.seen);
 
         if (hasUnseen) {
-            // Mark all friends as seen in the database
             await ParentProfile.updateOne(
                 { _id: req.params.id },
                 { $set: { "sonsFriends.sonsFriendsArray.$[].seen": true } }
             );
 
-            // Mutate in-memory array so the current response reflects `seen: true`
             friendsList.forEach(item => {
                 item.seen = true;
             });

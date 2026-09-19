@@ -8,24 +8,61 @@ const SonProfile = require('../models/sonProfile');
 const ParentProfile = require('../models/parentProfile');
 const Conversation = require('../models/conversation');
 
+const TWENTY_TWO_HOURS_MS = 22 * 60 * 60 * 1000;
+
 const isEqualId = (a, b) => {
-  const idA = (a?.parent?._id || a?.parent || a?._id || a)?.toString();
-  const idB = (b?.parent?._id || b?.parent || b?._id || b)?.toString();
+  const idA = (a?.parent?._id || a?.parent || a?.son?._id || a?.son || a?._id || a)?.toString();
+  const idB = (b?.parent?._id || b?.parent || b?.son?._id || b?.son || b?._id || b)?.toString();
   return idA === idB;
 };
 
 const escapeRegex = (text) => text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
 
-// Helper to format Mongoose validation/hook errors
+// Helper to check 22-hour rate limit on controller level for SonProfile
+const checkTwentyTwoHourLimit = (sonProfile) => {
+  const now = Date.now();
+
+  const lastParentAdded = sonProfile.parentsFriends?.dateWhenLastParentAdded
+    ? new Date(sonProfile.parentsFriends.dateWhenLastParentAdded).getTime()
+    : 0;
+
+  const lastRequestSent = sonProfile.parentsWithRequestSent?.dateWhenLastRequestWasSent
+    ? new Date(sonProfile.parentsWithRequestSent.dateWhenLastRequestWasSent).getTime()
+    : 0;
+
+  const latestActionTime = Math.max(lastParentAdded, lastRequestSent);
+
+  if (latestActionTime > 0 && (now - latestActionTime) < TWENTY_TWO_HOURS_MS) {
+    const remainingHours = ((TWENTY_TWO_HOURS_MS - (now - latestActionTime)) / (1000 * 60 * 60)).toFixed(1);
+    return `Możesz WYSŁAĆ lub PRZYJĄĆ zaproszenie raz na 22 godziny. Zaczekaj proszę pozostałe ${remainingHours} godz.`;
+  }
+
+  return null;
+};
+
+// Helper to format Mongoose validation errors
 const handleSaveError = (res, err) => {
+  let errorMessage = err.message;
+
   if (err.name === 'ValidationError') {
-    const messages = Object.values(err.errors).map(e => e.message);
-    return res.status(400).json({ error: messages.join(', ') });
+    const firstErrorKey = Object.keys(err.errors)[0];
+    if (firstErrorKey) {
+      errorMessage = err.errors[firstErrorKey].message;
+    }
   }
-  if (err.message) {
-    return res.status(400).json({ error: err.message });
+
+  if (err.name === 'ValidationError' || err.message?.includes('22')) {
+    return res.status(400).json({
+      success: false,
+      error: errorMessage
+    });
   }
-  return res.status(500).json({ error: 'An unexpected database error occurred' });
+
+  console.error(err);
+  return res.status(500).json({
+    success: false,
+    error: 'Coś nie zadziałało po stronie serwera.'
+  });
 };
 
 // 1. Index Validation & Endpoint
@@ -88,8 +125,8 @@ module.exports.index = async (req, res) => {
 
   try {
     const queryMatch = {
-      dateOfBirth: { $gte: dateMin, $lte: dateMax },
-      "address.city": { $regex: city, $options: 'i' }
+      dateOfBirth: { $gte: dateMin,$lte: dateMax },
+      "address.city": { $regex: city,$options: 'i' }
     };
 
     if (excludedIds.length > 0) {
@@ -98,9 +135,7 @@ module.exports.index = async (req, res) => {
 
     const sons = await SonProfile.aggregate([
       { $match: queryMatch },
-      { $sample: { size: 100 } },
-      {
-        $project: {
+      { $sample: { size: 100 } },       {$project: {
           dateOfBirth: 1,
           address: 1,
           job: 1,
@@ -225,6 +260,7 @@ module.exports.updateSon = async (req, res) => {
         url: uploadResult.secure_url,
         filename: uploadResult.public_id
       };
+      sonProfile.dateWhenImageLastUpdated = new Date(now);
     }
 
     if (fullName !== undefined) sonProfile.fullName = fullName;
@@ -284,11 +320,23 @@ module.exports.parentsWithRequestSentRegister = async (req, res) => {
       return res.status(409).json({ error: 'You have already sent a request to this parent.' });
     }
 
+    // Check 22-hour rate limit before proceeding
+    const rateLimitError = checkTwentyTwoHourLimit(sonProfile);
+    if (rateLimitError) {
+      return res.status(400).json({ error: rateLimitError });
+    }
+
+    const now = new Date();
+
     // Mutual addition branch
     if (isParentWhoWantToBeAdded) {
+      if (!sonProfile.parentsFriends) sonProfile.parentsFriends = {};
+      sonProfile.parentsFriends.dateWhenLastParentAdded = now;
       sonProfile.parentsFriends.parentsFriendsArray.push({ parent: parentid });
       sonProfile.parentsWhoWantToBeAdded = sonProfile.parentsWhoWantToBeAdded.filter(s => !isEqualId(s, parentid));
 
+      if (!parentProfile.sonsFriends) parentProfile.sonsFriends = {};
+      parentProfile.sonsFriends.dateWhenLastSonAdded = now;
       parentProfile.sonsFriends.sonsFriendsArray.push({ son: id });
       parentProfile.sonsWithRequestSent.sonsWithRequestSentArray = 
         parentProfile.sonsWithRequestSent.sonsWithRequestSentArray.filter(s => !isEqualId(s, id));
@@ -309,11 +357,14 @@ module.exports.parentsWithRequestSentRegister = async (req, res) => {
     }
 
     // Standard Request Path
+    if (!sonProfile.parentsWithRequestSent) sonProfile.parentsWithRequestSent = {};
+    sonProfile.parentsWithRequestSent.dateWhenLastRequestWasSent = now;
     sonProfile.parentsWithRequestSent.parentsWithRequestSentArray.push(parentid);
+
     parentProfile.sonsWhoWantToBeAdded.push({ son: id });
 
-    await parentProfile.save();
     await sonProfile.save();
+    await parentProfile.save();
 
     return res.status(200).json({ message: 'Friend request sent successfully.' });
   } catch (e) {
@@ -392,9 +443,21 @@ module.exports.parentsWhoWantToBeAddedAccept = async (req, res) => {
       return res.status(400).json({ error: 'This parent is not on your pending requests list.' });
     }
 
+    // Check 22-hour rate limit before accepting request
+    const rateLimitError = checkTwentyTwoHourLimit(sonProfile);
+    if (rateLimitError) {
+      return res.status(400).json({ error: rateLimitError });
+    }
+
+    const now = new Date();
+
+    if (!sonProfile.parentsFriends) sonProfile.parentsFriends = {};
+    sonProfile.parentsFriends.dateWhenLastParentAdded = now;
     sonProfile.parentsFriends.parentsFriendsArray.push({ parent: parentid });
     sonProfile.parentsWhoWantToBeAdded = sonProfile.parentsWhoWantToBeAdded.filter(s => !isEqualId(s, parentid));
 
+    if (!parentProfile.sonsFriends) parentProfile.sonsFriends = {};
+    parentProfile.sonsFriends.dateWhenLastSonAdded = now;
     parentProfile.sonsFriends.sonsFriendsArray.push({ son: id });
     parentProfile.sonsWithRequestSent.sonsWithRequestSentArray = 
       parentProfile.sonsWithRequestSent.sonsWithRequestSentArray.filter(p => !isEqualId(p, id));
@@ -470,6 +533,7 @@ module.exports.parentsFriendsShow = async (req, res) => {
 
 module.exports.parentsFriendsDelete = async (req, res) => {
   const { id, parentid } = req.params;
+  console.log('backed remove');
   try {
     const sonProfile = await SonProfile.findById(id);
     const parentProfile = await ParentProfile.findById(parentid);
