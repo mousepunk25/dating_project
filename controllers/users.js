@@ -3,10 +3,12 @@ const path = require('path');
 const User = require('../models/user');
 const SonProfile = require('../models/sonProfile');
 const ParentProfile = require('../models/parentProfile');
+const Conversation = require('../models/conversation')
 const cloudinary = require('cloudinary').v2;
 const passport = require('passport');
 const sendEmail = require('../utils/sendEmail');
 const {validateEmailLimits} = require('./authController');
+const Message = require('../models/message');
 
 const frontendURL = process.env.ENVIRONMENT_VERSION === 'dev'
     ? process.env.DEV_FRONTEND_URL
@@ -74,7 +76,7 @@ module.exports.logout = (req, res, next) => {
 
 module.exports.deleteUser = async (req, res, next) => {
     try {
-        const userId = req.user?._id || req.params.id;
+        const userId = req.user?._id || null;
 
         if (!userId) {
             return res.status(400).json({ message: "User ID is required." });
@@ -84,9 +86,19 @@ module.exports.deleteUser = async (req, res, next) => {
             return res.status(403).json({ message: "Unauthorized to delete this account." });
         }
 
+        // 1. Delete all messages sent by this user
+        await Message.deleteMany({ sender: userId });
+
+        // 2. Remove user ID from any 'readBy' arrays in remaining messages
+        await Message.updateMany(
+            { readBy: userId },
+            { $pull: { readBy: userId } }
+        );
+
         const sonProfile = await SonProfile.findOne({ owner: userId });
         const parentProfile = await ParentProfile.findOne({ owner: userId });
 
+        // If the user has neither profile, delete the User document and exit
         if (!sonProfile && !parentProfile) {
             await User.findByIdAndDelete(userId);
             req.logout?.(() => { });
@@ -147,7 +159,7 @@ module.exports.deleteUser = async (req, res, next) => {
             if (err) {
                 console.error("Error logging out during deletion:", err);
             }
-            return res.json({ message: "Tówj profil został usunięty." });
+            return res.json({ message: "Twój profil został usunięty." });
         });
 
     } catch (e) {
