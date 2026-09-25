@@ -56,8 +56,8 @@ async function sendEmail({ to, template, payload }) {
         const { subject, html } = getEmailTemplate(template, payload);
 
         const sender = isDev
-            ? 'Acme <onboarding@resend.dev>'
-            : 'Acme <no-reply@kontakt.kawaliry.pl>';
+            ? 'Kawaliry <onboarding@resend.dev>'
+            : 'Kawaliry <no-reply@kontakt.kawaliry.pl>';
 
         const response = await resend.emails.send({
             from: sender,
