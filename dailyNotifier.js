@@ -20,43 +20,43 @@ function getMessageText(count) {
 }
 
 function getSonFriendText(count) {
-    if (count === 1) return 'Masz 1 nowe połączenie w znajomych od syna.';
+    if (count === 1) return 'Masz 1 nowe połączenie w znajomych od kandydata na zięcia.';
     const lastDigit = count % 10;
     const lastTwoDigits = count % 100;
     if (lastDigit >= 2 && lastDigit <= 4 && (lastTwoDigits < 12 || lastTwoDigits > 14)) {
-        return `Masz ${count} nowe połączenia w znajomych od synów.`;
+        return `Masz ${count} nowe połączenia w znajomych od kandydatów na zięciów.`;
     }
-    return `Masz ${count} nowych połączeń w znajomych od synów.`;
+    return `Masz ${count} nowych połączeń w znajomych od kandydatów na zięciów.`;
 }
 
 function getSonRequestText(count) {
-    if (count === 1) return 'Masz 1 nowe zaproszenie do znajomych od syna.';
+    if (count === 1) return 'Masz 1 nowe zaproszenie do znajomych od kandydata na zięcia.';
     const lastDigit = count % 10;
     const lastTwoDigits = count % 100;
     if (lastDigit >= 2 && lastDigit <= 4 && (lastTwoDigits < 12 || lastTwoDigits > 14)) {
-        return `Masz ${count} nowe zaproszenia do znajomych od synów.`;
+        return `Masz ${count} nowe zaproszenia do znajomych od kandydatów na zięciów.`;
     }
-    return `Masz ${count} nowych zaproszeń do znajomych od synów.`;
+    return `Masz ${count} nowych zaproszeń do znajomych od kandydatów na zięciów.`;
 }
 
 function getParentFriendText(count) {
-    if (count === 1) return 'Masz 1 nowe połączenie w znajomych od rodzica.';
+    if (count === 1) return 'Masz 1 nowe połączenie w znajomych od kandydatki/kandydata na teściową/teścia.';
     const lastDigit = count % 10;
     const lastTwoDigits = count % 100;
     if (lastDigit >= 2 && lastDigit <= 4 && (lastTwoDigits < 12 || lastTwoDigits > 14)) {
-        return `Masz ${count} nowe połączenia w znajomych od rodziców.`;
+        return `Masz ${count} nowe połączenia w znajomych od kandydatek/kandydatów na teściowe/teściów.`;
     }
-    return `Masz ${count} nowych połączeń w znajomych od rodziców.`;
+    return `Masz ${count} nowych połączeń w znajomych od kandydatek/kandydatów na teściowe/teściów.`;
 }
 
 function getParentRequestText(count) {
-    if (count === 1) return 'Masz 1 nowe zaproszenie do znajomych od rodzica.';
+    if (count === 1) return 'Masz 1 nowe zaproszenie do znajomych od kandydatki/kandydata na teściową/teścia.';
     const lastDigit = count % 10;
     const lastTwoDigits = count % 100;
     if (lastDigit >= 2 && lastDigit <= 4 && (lastTwoDigits < 12 || lastTwoDigits > 14)) {
-        return `Masz ${count} nowe zaproszenia do znajomych od rodziców.`;
+        return `Masz ${count} nowe zaproszenia do znajomych od kandydatek/kandydatów na teściowe/teściów.`;
     }
-    return `Masz ${count} nowych zaproszeń do znajomych od rodziców.`;
+    return `Masz ${count} nowych zaproszeń do znajomych od kandydatek/kandydatów na teściowe/teściów.`;
 }
 
 async function sendNotificationEmail(recipientEmail, notifications) {
