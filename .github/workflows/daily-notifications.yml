@@ -1,0 +1,32 @@
+name: Codzienne Powiadomienia E-mail
+
+on:
+  schedule:
+    # Uruchamia się codziennie o 07:00 UTC (czyli 09:00 czasu polskiego w okresie letnim / 08:00 w zimowym)
+    - cron: '0 7 * * *'
+  # Pozwala na ręczne wywołanie z poziomu zakładki Actions na GitHubie (przydatne do testów)
+  workflow_dispatch:
+
+jobs:
+  send-emails:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Pobieranie kodu repozytorium
+        uses: actions/checkout@v4
+
+      - name: Konfiguracja Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalacja zależności
+        run: npm ci
+
+      - name: Uruchomienie skryptu powiadomień
+        env:
+          MONGO_URI: ${{ secrets.MONGO_URI }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
+        run: node dailyNotifier.js

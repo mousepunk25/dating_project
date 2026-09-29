@@ -16,14 +16,14 @@ function getEmailTemplate(template, payload) {
         case 'verification': {
             const link = `${frontendURL}/verify-email?token=${payload.token}`;
             return {
-                subject: 'Verify Your Email Address',
+                subject: 'Zweryfikuj adres email',
                 html: `
-                    <h2>Welcome to Our Platform!</h2>
-                    <p>Please click the button below to verify your email account:</p>
-                    <a href="${link}" style="display:inline-block;padding:10px 20px;background-color:#4F46E5;color:#ffffff;text-decoration:none;border-radius:5px;">Verify Email</a>
-                    <p>If the button doesn't work, copy and paste this link into your browser:</p>
+                    <h2>Witamy na stronie kawaliry.pl</h2>
+                    <p>Kliknij w poniższy przycisk, żeby zweryfikować swoje konto email:</p>
+                    <a href="${link}" style="display:inline-block;padding:10px 20px;background-color:#4F46E5;color:#ffffff;text-decoration:none;border-radius:5px;">Zweryfikuj email</a>
+                    <p>Jeżeli przycisk nie działa skopiuj i wklej ten link do przeglądarki:</p>
                     <p><a href="${link}">${link}</a></p>
-                    <p>This link will expire in 24 hours.</p>
+                    <p>Ten link wygaśnie za 24 godziny.</p>
                 `
             };
         }
@@ -31,14 +31,14 @@ function getEmailTemplate(template, payload) {
         case 'reset-password': {
             const link = `${frontendURL}/reset-password?token=${payload.token}`;
             return {
-                subject: 'Reset Your Password',
+                subject: 'Zresetuj hasło',
                 html: `
-                    <h2>Password Reset Request</h2>
-                    <p>We received a request to reset your password. Click the button below to set a new password:</p>
+                    <h2>Zresetuj hasło</h2>
+                    <p>Dostaliśmy prośbę o zresetowanie hasła. Kliknij w poniższy przycisk, żeby utworzyć nowe hasło:</p>
                     <a href="${link}" style="display:inline-block;padding:10px 20px;background-color:#4F46E5;color:#ffffff;text-decoration:none;border-radius:5px;">Reset Password</a>
-                    <p>If the button doesn't work, copy and paste this link into your browser:</p>
+                    <p>Jeśli przycisk nie działa, skopiuj i wklej ten link w przeglądarkę:</p>
                     <p><a href="${link}">${link}</a></p>
-                    <p>This link will expire in 1 hour. If you did not request this, you can safely ignore this email.</p>
+                    <p>Ten link wygaśnie za 1 godzinę. Jeżeli nie poprosiłeś o zmianę hasła, zignoruj tę wiadomość.</p>
                 `
             };
         }

@@ -219,10 +219,10 @@ module.exports.register = async (req, res, next) => {
 
         } else if (role === 'son') {
             let imageObj = {};
-            const placeholderPath = path.join(__dirname, '../public/image_placeholder.jpg');
+            const FALLBACK_IMAGE_URL = 'https://res.cloudinary.com/gljkxoem/image/upload/v1784026809/shoes.jpg';
 
             try {
-                const sourceToUpload = imageInput || placeholderPath;
+                const sourceToUpload = imageInput || FALLBACK_IMAGE_URL;
 
                 const uploadOptions = {
                     folder: 'profile_pictures'
@@ -250,7 +250,7 @@ module.exports.register = async (req, res, next) => {
                 } else {
                     await cloudinary.uploader.destroy(uploadResult.public_id);
 
-                    const fallbackUpload = await cloudinary.uploader.upload(placeholderPath, {
+                    const fallbackUpload = await cloudinary.uploader.upload(FALLBACK_IMAGE_URL, {
                         folder: 'profile_pictures'
                     });
 
@@ -263,7 +263,7 @@ module.exports.register = async (req, res, next) => {
                 console.error('Cloudinary upload or moderation failed:', e);
 
                 try {
-                    const fallbackUpload = await cloudinary.uploader.upload(placeholderPath, {
+                    const fallbackUpload = await cloudinary.uploader.upload(FALLBACK_IMAGE_URL, {
                         folder: 'profile_pictures'
                     });
                     imageObj = {
