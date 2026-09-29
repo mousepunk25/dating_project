@@ -83,12 +83,14 @@ async function sendNotificationEmail(recipientEmail, notifications) {
 
         if (error) {
             console.error(`Błąd Resend API dla ${recipientEmail}:`, error);
-            return;
+            return false;
         }
 
         console.log(`E-mail z powiadomieniem wysłany do ${recipientEmail} (ID: ${data.id})`);
+        return true;
     } catch (err) {
         console.error(`Nie udało się wysłać e-maila do ${recipientEmail}:`, err);
+        return false;
     }
 }
 
@@ -98,11 +100,14 @@ async function run() {
     const mongoURI = `mongodb+srv://${process.env.DATABASE_USERNAME}:${process.env.DATABASE_PASSWORD}@datingproject.ktsayaf.mongodb.net/?appName=DatingProject`;
 
     if (!process.env.DATABASE_USERNAME || !process.env.DATABASE_PASSWORD) {
-        throw new Error('Brak zmiennej środowiskowej MONGO_URI!');
+        throw new Error('Brak zmiennych środowiskowych DATABASE_USERNAME lub DATABASE_PASSWORD!');
     }
 
     await mongoose.connect(mongoURI);
     console.log('Połączono z bazą danych.');
+
+    let sentEmailsCount = 0;
+    let failedEmailsCount = 0;
 
     try {
         const users = await User.find({ isVerified: true }).lean();
@@ -166,10 +171,20 @@ async function run() {
 
             // 3. Wysyłka e-maila
             if (notifications.length > 0) {
-                await sendNotificationEmail(user.email, notifications);
+                const isSent = await sendNotificationEmail(user.email, notifications);
+                if (isSent) {
+                    sentEmailsCount++;
+                } else {
+                    failedEmailsCount++;
+                }
             }
         }
 
+        console.log(`\n--- PODSUMOWANIE WYSYŁKI ---`);
+        console.log(`Liczba pomyślnie wysłanych e-maili: ${sentEmailsCount}`);
+        if (failedEmailsCount > 0) {
+            console.log(`Liczba nieudanych prób: ${failedEmailsCount}`);
+        }
         console.log('Zakończono wysyłanie powiadomień.');
     } catch (error) {
         console.error('Błąd podczas wykonywania skryptu:', error);
