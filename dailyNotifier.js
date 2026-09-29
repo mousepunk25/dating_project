@@ -97,7 +97,7 @@ async function run() {
     
     const mongoURI = `mongodb+srv://${process.env.DATABASE_USERNAME}:${process.env.DATABASE_PASSWORD}@datingproject.ktsayaf.mongodb.net/?appName=DatingProject`;
 
-    if (!process.env.DATABASE_USERNAME || process.env.DATABASE_PASSWORD) {
+    if (!process.env.DATABASE_USERNAME || !process.env.DATABASE_PASSWORD) {
         throw new Error('Brak zmiennej środowiskowej MONGO_URI!');
     }
 
