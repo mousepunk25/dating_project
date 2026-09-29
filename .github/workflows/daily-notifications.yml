@@ -26,7 +26,8 @@ jobs:
 
       - name: Uruchomienie skryptu powiadomień
         env:
-          MONGO_URI: ${{ secrets.MONGO_URI }}
+          DATABASE_USERNAME: ${{ secrets.DATABASE_USERNAME }}
+          DATABASE_PASSWORD: ${{secrets.DATABASE_PASSWORD}}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
         run: node dailyNotifier.js
