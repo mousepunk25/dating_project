@@ -187,6 +187,15 @@ module.exports.register = async (req, res, next) => {
             image: imageInput
         } = req.body;
 
+        // 1. PRE-CHECK: Fast-exit before doing expensive Cloudinary API calls
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            return res.status(400).json({
+                success: false,
+                message: 'Konto z takim adresem email już istnieje.'
+            });
+        }
+
         const userJob = job || (role === 'parent' ? jobParent : jobSon) || '';
 
         const rawToken = crypto.randomBytes(32).toString('hex');
@@ -199,12 +208,14 @@ module.exports.register = async (req, res, next) => {
             isVerified: false,
             verificationToken: hashedToken,
             verificationTokenExpires: tokenExpires,
-            emailSentHistory: [new Date()] // Initialize with first registration email timestamp
+            emailSentHistory: [new Date()]
         });
 
+        // 2. REGISTER USER via Passport Local Mongoose
         const registeredUser = await User.register(user, password);
         let profileId = '';
 
+        // 3. CREATE ROLE-SPECIFIC PROFILES
         if (role === 'parent') {
             const parentProfile = new ParentProfile({
                 owner: registeredUser._id,
@@ -271,7 +282,10 @@ module.exports.register = async (req, res, next) => {
                         filename: fallbackUpload.public_id
                     };
                 } catch (fallbackError) {
-                    return next(fallbackError);
+                    return res.status(500).json({
+                        success: false,
+                        message: 'Failed to process profile image.'
+                    });
                 }
             }
 
@@ -290,17 +304,49 @@ module.exports.register = async (req, res, next) => {
             profileId = sonProfile._id;
         }
 
+        // 4. SEND VERIFICATION EMAIL
         await sendEmail({
             to: user.email,
             template: 'verification',
             payload: { token: rawToken }
         });
 
-        res.redirect(`${frontendURL}/myprofile?status=verification-sent`);
+        // 5. SUCCESS RESPONSE
+        return res.status(201).json({
+            success: true,
+            message: 'Registration successful. Verification email sent.',
+            data: {
+                userId: registeredUser._id,
+                profileId,
+                email: registeredUser.email,
+                role: registeredUser.role
+            }
+        });
 
     } catch (e) {
-        console.error(e.message);
-        res.redirect('register');
+        console.error('Registration error:', e);
+
+        // Catch passport-local-mongoose duplicate user error
+        if (e.name === 'UserExistsError') {
+            return res.status(400).json({
+                success: false,
+                message: 'Konto z takim adresem email już istnieje.'
+            });
+        }
+
+        // Catch Mongoose validation errors
+        if (e.name === 'ValidationError') {
+            return res.status(400).json({
+                success: false,
+                message: e.message
+            });
+        }
+
+        // Generic catch-all server error
+        return res.status(500).json({
+            success: false,
+            message: 'Po naszej stronie pojawił się jakiś błąd. Proszę spróbować później.'
+        });
     }
 };
 
