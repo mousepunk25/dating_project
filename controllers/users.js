@@ -86,28 +86,49 @@ module.exports.deleteUser = async (req, res, next) => {
             return res.status(403).json({ message: "Unauthorized to delete this account." });
         }
 
-        // 1. Delete all messages sent by this user
+        // Fetch profiles first to identify participation IDs
+        const sonProfile = await SonProfile.findOne({ owner: userId });
+        const parentProfile = await ParentProfile.findOne({ owner: userId });
+
+        const sonId = sonProfile ? sonProfile._id : null;
+        const parentId = parentProfile ? parentProfile._id : null;
+
+        // 1. Gather all conversation IDs in which this user takes part
+        const conversationQuery = { $or: [] };
+        if (sonId) conversationQuery.$or.push({ participantSon: sonId });
+        if (parentId) conversationQuery.$or.push({ participantParent: parentId });
+
+        let conversationIds = [];
+        if (conversationQuery.$or.length > 0) {
+            const conversations = await Conversation.find(conversationQuery).select('_id');
+            conversationIds = conversations.map(c => c._id);
+        }
+
+        // 2. Delete all messages connected to these conversations (from all participants)
+        if (conversationIds.length > 0) {
+            await Message.deleteMany({ conversationId: { $in: conversationIds } });
+        }
+
+        // Also ensure any messages sent directly by this user elsewhere are removed
         await Message.deleteMany({ sender: userId });
 
-        // 2. Remove user ID from any 'readBy' arrays in remaining messages
+        // 3. Remove user ID from any 'readBy' arrays in remaining messages
         await Message.updateMany(
             { readBy: userId },
             { $pull: { readBy: userId } }
         );
 
-        const sonProfile = await SonProfile.findOne({ owner: userId });
-        const parentProfile = await ParentProfile.findOne({ owner: userId });
-
-        // If the user has neither profile, delete the User document and exit
+        // If the user has neither profile, delete conversations, User document, and exit
         if (!sonProfile && !parentProfile) {
+            if (conversationIds.length > 0) {
+                await Conversation.deleteMany({ _id: { $in: conversationIds } });
+            }
             await User.findByIdAndDelete(userId);
             req.logout?.(() => { });
             return res.json({ message: "User account deleted successfully." });
         }
 
         if (sonProfile) {
-            const sonId = sonProfile._id;
-
             await ParentProfile.updateMany(
                 {},
                 {
@@ -119,8 +140,6 @@ module.exports.deleteUser = async (req, res, next) => {
                     }
                 }
             );
-
-            await Conversation.deleteMany({ participantSon: sonId });
 
             if (sonProfile.image && sonProfile.image.filename) {
                 try {
@@ -134,8 +153,6 @@ module.exports.deleteUser = async (req, res, next) => {
         }
 
         if (parentProfile) {
-            const parentId = parentProfile._id;
-
             await SonProfile.updateMany(
                 {},
                 {
@@ -148,9 +165,12 @@ module.exports.deleteUser = async (req, res, next) => {
                 }
             );
 
-            await Conversation.deleteMany({ participantParent: parentId });
-
             await ParentProfile.findByIdAndDelete(parentId);
+        }
+
+        // 4. Remove all conversations in which this user took part
+        if (conversationIds.length > 0) {
+            await Conversation.deleteMany({ _id: { $in: conversationIds } });
         }
 
         await User.findByIdAndDelete(userId);

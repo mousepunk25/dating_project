@@ -1,10 +1,11 @@
 const { Resend } = require('resend');
 const mongoose = require('mongoose');
 
-// Import modeli Mongoose (dostosuj ścieżki)
+// Import modeli Mongoose (dostosuj ścieżki w razie potrzeby)
 const User = require('./models/user');
 const ParentProfile = require('./models/parentProfile');
 const SonProfile = require('./models/sonProfile');
+const Conversation = require('./models/conversation');
 const Message = require('./models/message');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -115,11 +116,32 @@ async function run() {
         for (const user of users) {
             const notifications = [];
 
-            // 1. Nieprzeczytane wiadomości
-            const unreadMessagesCount = await Message.countDocuments({
-                sender: { $ne: user._id },
-                readBy: { $ne: user._id }
-            });
+            // Znajdź powiązane profile użytkownika, aby ustalić jego ID uczestnika w konwersacjach
+            const parentProfile = await ParentProfile.findOne({ owner: user._id }).lean();
+            const sonProfile = await SonProfile.findOne({ owner: user._id }).lean();
+
+            const parentId = parentProfile ? parentProfile._id : null;
+            const sonId = sonProfile ? sonProfile._id : null;
+
+            let conversationIds = [];
+            const conversationQuery = { $or: [] };
+            if (parentId) conversationQuery.$or.push({ participantParent: parentId });
+            if (sonId) conversationQuery.$or.push({ participantSon: sonId });
+
+            if (conversationQuery.$or.length > 0) {
+                const userConversations = await Conversation.find(conversationQuery).select('_id').lean();
+                conversationIds = userConversations.map(c => c._id);
+            }
+
+            // 1. Nieprzeczytane wiadomości (tylko w konwersacjach użytkownika)
+            let unreadMessagesCount = 0;
+            if (conversationIds.length > 0) {
+                unreadMessagesCount = await Message.countDocuments({
+                    conversationId: { $in: conversationIds },
+                    sender: { $ne: user._id },
+                    readBy: { $ne: user._id }
+                });
+            }
 
             if (unreadMessagesCount > 0) {
                 notifications.push(getMessageText(unreadMessagesCount));
@@ -127,8 +149,6 @@ async function run() {
 
             // 2. Powiadomienia specyficzne dla roli
             if (user.role === 'parent') {
-                const parentProfile = await ParentProfile.findOne({ owner: user._id }).lean();
-
                 if (parentProfile) {
                     const unseenFriendsCount = parentProfile.sonsFriends?.sonsFriendsArray?.filter(
                         f => f.seen === false
@@ -148,8 +168,6 @@ async function run() {
                 }
 
             } else if (user.role === 'son') {
-                const sonProfile = await SonProfile.findOne({ owner: user._id }).lean();
-
                 if (sonProfile) {
                     const unseenFriendsCount = sonProfile.parentsFriends?.parentsFriendsArray?.filter(
                         f => f.seen === false
