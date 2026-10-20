@@ -7,7 +7,7 @@ const Conversation = require('../models/conversation')
 const cloudinary = require('cloudinary').v2;
 const passport = require('passport');
 const sendEmail = require('../utils/sendEmail');
-const {validateEmailLimits} = require('./authController');
+const { validateEmailLimits } = require('./authController');
 const Message = require('../models/message');
 
 const frontendURL = process.env.ENVIRONMENT_VERSION === 'dev'
@@ -133,9 +133,9 @@ module.exports.deleteUser = async (req, res, next) => {
                 {},
                 {
                     $pull: {
-                        "sonsFriends.sonsFriendsArray": { _id: sonId },
-                        "sonsWithRequestSent.sonsWithRequestSentArray": { _id: sonId },
-                        sonsWhoWantToBeAdded: sonId,
+                        "sonsFriends.sonsFriendsArray": { son: sonId },
+                        "sonsWithRequestSent.sonsWithRequestSentArray": sonId, // If this is an array of ObjectIds, keep as is. If it's subdocuments, use { son: sonId }
+                        sonsWhoWantToBeAdded: { son: sonId },
                         sonsSaved: sonId
                     }
                 }
@@ -157,9 +157,9 @@ module.exports.deleteUser = async (req, res, next) => {
                 {},
                 {
                     $pull: {
-                        "parentsFriends.parentsFriendsArray": { _id: parentId },
-                        "parentsWithRequestSent.parentsWithRequestSentArray": { _id: parentId },
-                        parentsWhoWantToBeAdded: parentId,
+                        "parentsFriends.parentsFriendsArray": { parent: parentId },
+                        "parentsWithRequestSent.parentsWithRequestSentArray": parentId, // Adjust if subdocuments
+                        parentsWhoWantToBeAdded: { parent: parentId },
                         parentsSaved: parentId
                     }
                 }
